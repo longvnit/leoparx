@@ -1,0 +1,19 @@
+#!/bin/sh
+./configure \
+	"--user=nginx" \
+	"--group=nginx" \
+	"--prefix=/leoparx/nginx" \
+	"--sbin-path=/leoparx/nginx/sbin/nginx" \
+	"--conf-path=/leoparx/nginx/conf/nginx.conf" \
+	"--pid-path=/leoparx/nginx/var/run/nginx.pid" \
+	"--http-log-path=/leoparx/nginx/var/log/nginx/access_log" \
+	"--error-log-path=/leoparx/nginx/var/log/nginx/error_log" \
+	"--without-mail_imap_module" \
+	"--without-mail_smtp_module" \
+	"--with-http_ssl_module" \
+	"--with-http_realip_module" \
+	"--with-http_stub_status_module" \
+	"--with-http_gzip_static_module" \
+	"--with-http_dav_module" \
+	"--with-http_v2_module" \
+	"--with-cc-opt='-D FD_SETSIZE=32768'"

@@ -1,6 +1,4 @@
 # nginx binary startup for Leoparx servers
-# To reload systemd daemon after changes to this file:
-# systemctl --system daemon-reload
 
 [Unit]
 Description=The nginx HTTP and reverse proxy server

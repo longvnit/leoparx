@@ -1,0 +1,93 @@
+#!/bin/bash
+BUILD_DIR=`pwd`
+echo ${BUILD_DIR}
+
+get_file() {
+    cd ${BUILD_DIR}
+    FILE_NAME=${1}
+    FILE_URL="http://files.directadmin.com/services/custombuild/${FILE_NAME}"
+
+    if [ ! -s ${FILE_NAME} ]; then
+        while true ; do
+            wget ${FILE_URL}
+            if [ ! -s ${FILE_NAME} ]; then
+                echo "\n*** Download has failed, would you like to try to download again? (y,n): \n";
+                read yesno
+                if [ "${yesno}" = "n" ]; then
+                    exit 1
+                fi
+            else
+                break
+            fi
+        done
+    else
+        while true ; do
+            echo "\n*** Would you like to re-download? (y,n): \n";
+            read yesno
+            if [ "${yesno}" = "n" ]; then
+                break
+            else
+                rm -rf ${BUILD_DIR}/${FILE_NAME}
+                get_file ${FILE_NAME}
+            fi
+
+            break
+        done
+    fi
+}
+
+#get_file autoconf-2.61.tar.gz
+getVer() {
+	APEEND=`echo ${1} | awk '{gsub(/\./,"_",$1);gsub(/-/,"_",$1);print $1;}'`
+	RESULT=$(eval_var VERSIONS_TXT_${APEEND})
+
+	if [ "${RESULT}" = "" ]; then
+		>&2 echo "ERROR: version of $1 not found in versions.txt!"
+		RESULT="0"
+	fi
+
+	echo "${RESULT}"
+}
+
+getMD5() {
+	if ${EXISTS_VERSIONS_FILE_CUSTOM}; then
+		if grep -m1 -q ^$1: ${VERSIONS_FILE_CUSTOM}; then
+			RESULT=`grep -m1 ^$1: ${VERSIONS_FILE_CUSTOM} | cut -d ':' -f 3`
+		else
+			RESULT=`grep -m1 ^$1: ${VERSIONS_FILE} | cut -d ':' -f 3`
+		fi
+	else
+		RESULT=`grep -m1 ^$1: ${VERSIONS_FILE} | cut -d ':' -f 3`
+	fi
+	
+	if [ "${RESULT}" = "" ]; then
+		RESULT=`grep -m1 ^$1: ${PATCHES_VERSIONS_FILE} | cut -d ':' -f 3`
+	fi
+
+	echo "${RESULT}"
+}
+
+
+#SOURCE_VERSIONS_TXT=`awk -F ":" '{gsub(/\./,"_",$1);gsub(/-/,"_",$1);print "package_version_"$1"="$2}' ./packages.leo`
+#eval ${SOURCE_VERSIONS_TXT}
+
+#echo ${package_version}
+init_version_packages() {
+    cd .
+    VERSION_PACKAGES="packages.leo"
+    if [ ! -s ${VERSION_PACKAGES} ]; then
+        get_file ${VERSION_PACKAGES}
+    fi
+
+    SOURCE_VERSIONS_TXT=`awk -F ":" '{gsub(/\./,"_",$1);gsub(/-/,"_",$1);print "version_package_"$1"="$2}' ./${VERSION_PACKAGES}`
+    
+    eval ${SOURCE_VERSIONS_TXT}
+
+    #echo ${version_package_autoconf}
+}
+
+init_version_packages
+
+#echo ${version_package_autoconf}
+
+echo ${version_package_autoconf}

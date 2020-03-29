@@ -4,7 +4,6 @@
 	--program-suffix=73 \
 	--enable-fpm \
 	--with-fpm-systemd \
-	--with-litespeed \
 	--with-config-file-scan-dir=/leoparx/php73/lib/php.conf.d \
 	--with-curl \
 	--with-gd \

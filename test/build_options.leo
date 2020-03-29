@@ -1,3 +1,3 @@
-autoconf:2.69:82d05e03b93e45f5a39b828dc9c6c29b
+autoconf=1.2.1
 automake:1.16.2:83cc2463a4080efd46a72ba2c9f6b8f5
 automake:1.16.2:83cc2463a4080efd46a72ba2c9f6b8f5

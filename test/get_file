@@ -86,8 +86,148 @@ init_version_packages() {
     #echo ${version_package_autoconf}
 }
 
-init_version_packages
+#init_version_packages
 
 #echo ${version_package_autoconf}
 
-echo ${version_package_autoconf}
+#echo ${version_package_autoconf}
+
+eval_var() {
+	var=${1}
+	if [ -z ${var} ]; then
+		echo ""
+	else
+		eval newval="\$${var}"
+		echo $newval
+	fi
+}
+
+setOpt() {
+	#$1 is option name
+	#$2 is value
+    OPTIONS_CONF="./options.txt"
+	READ_OPTION_NAME="$1"
+	READ_OPTION_VALUE="`echo \"$2\" | perl -p0 -e 's|@|\\\\@|g'`"
+	#Rewrite spamassassin to spamd for backwards compatibility
+	if [ "${READ_OPTION_NAME}" = "spamassassin" ]; then
+		READ_OPTION_NAME="spamd"
+		if [ "${READ_OPTION_VALUE}" = "yes" ]; then
+			READ_OPTION_VALUE="spamassassin"
+		fi
+	fi
+
+	SET_IN_FILENAME="${OPTIONS_CONF}"
+
+	if echo " ioncube suhosin zend htscanner imagick opcache " | grep -m1 -q " ${READ_OPTION_NAME} "; then
+		setPhpOpt "${READ_OPTION_NAME}" "${READ_OPTION_VALUE}"
+		return
+	fi
+
+	VAR=`echo ${READ_OPTION_NAME} | tr "[a-z]" "[A-Z]"`
+	if [ -z "$(eval_var ${VAR}_DEF)" ]; then
+		echo "${READ_OPTION_NAME} is not a valid option."
+		EXIT_CODE=50
+		return
+	fi
+	VALID="no"
+	for i in $(eval_var ${VAR}_SET); do
+		if [ "${i}" = "${READ_OPTION_VALUE}" ] || [ "${i}" = "userinput" ]; then
+			VALID="yes"
+			break
+		fi
+	done
+	if [ "${VALID}" = "no" ]; then
+		echo "${READ_OPTION_VALUE} is not a valid setting for ${READ_OPTION_NAME} option."
+		EXIT_CODE=51
+		return
+	fi
+	OPT_VALUE="`grep -m1 "^${READ_OPTION_NAME}=" "${SET_IN_FILENAME}" | cut -d= -f2 | perl -p0 -e 's|@|\\\\@|g'`"
+	perl -pi -e "s#${READ_OPTION_NAME}=${OPT_VALUE}#${READ_OPTION_NAME}=${READ_OPTION_VALUE}#" "${SET_IN_FILENAME}"
+	if [ "${HIDE_CHANGES}" = "0" ]; then
+		echo "Changed ${boldon}${READ_OPTION_NAME}${boldoff} option from ${boldon}${OPT_VALUE}${boldoff} to ${boldon}${READ_OPTION_VALUE}${boldoff}" | perl -p0 -e 's|\\\@|\@|g'
+	fi
+}
+
+option_set_valid() {
+	#Used in create_options()
+	if [ -z "$2" ]; then
+		if [ ! -z "$3" ]; then
+			OPTION_VALUE="${3}"
+		else
+			echo "Two arguments must be given for the function"
+			return
+		fi
+	else
+		OPTION_VALUE="${2}"
+	fi
+	VAR=`echo $1 | tr "[a-z]" "[A-Z]"`
+
+	if [ -z "$(eval_var ${VAR}_SET)" ]; then
+		echo "${1} is not a valid option."
+		return
+	fi
+
+	VALID="no"
+	for i in $(eval_var ${VAR}_SET); do
+		if [ "${i}" = "${OPTION_VALUE}" ] || [ "${i}" = "userinput" ]; then
+			VALID="yes"
+			break
+		fi
+	done
+	if [ "${VALID}" = "yes" ]; then
+		setOpt $1 ${OPTION_VALUE}
+	else
+		echo "${boldon}Invalid selection, please enter the selection again.${boldoff}"
+	fi
+	echo ""
+}
+
+FTPD_SET="proftpd pureftpd no"
+
+QUESTION_SET="`echo ${FTPD_SET} | tr ' ' '/'`"
+VALID="no"
+#until [ "${VALID}" = "yes" ]; do
+#    echo -n "Please select FTP server you would like to use (${QUESTION_SET}, ${FTPD_DEF}):"
+#    read option_answer
+#    option_set_valid ftpd "${option_answer}" "${FTPD_DEF}"
+#done
+
+set_option() {
+    BUILD_DIR="."
+    BUILT_OPTIONS="build_options.leo"
+
+    if [ -z "${3}" ]; then
+        echo "Three arguments are required for this function"
+        echo "set_option <option_name> <option_value> \"<options_valid>\""
+        return
+    fi
+
+    local opt_name=${1}
+    local opt_value=${2}
+    local valid_options=${3}
+
+    # Check option name 
+    local opt_line_number=`awk '{ print $0, NR }' ${BUILD_DIR}/${BUILT_OPTIONS}  | grep -m1 ${opt_name} | awk '{print $2}'`
+
+    if [ -z "${opt_line_number}" ]; then
+        echo "${opt_name} is not a valid option."
+        return
+    fi
+
+    # Check option value
+
+    for i in ${valid_options}; do
+        if [ ${opt_value} == ${i} ]; then
+            VALID_OPTION="yes"
+            # Replace to new option value
+            sed -i "${opt_line_number}s/.*/${opt_name}=${opt_value}/" ${BUILD_DIR}/${BUILT_OPTIONS}
+            
+            return
+        fi
+    done
+
+    echo "${opt_name}=${opt_value} is not a valid value."
+}
+
+set_option autoconf 1.2.2 "1.2.0 1.2.1"
+

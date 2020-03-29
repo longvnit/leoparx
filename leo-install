@@ -181,6 +181,18 @@ init_version_packages() {
     eval ${source_versions}
 }
 
+create_options() {
+
+	until [ "${VALID_OPTION}" = "yes" ]; do
+		echo -n "Please select PHP version you would like to use (${QUESTION_SET}, default ${FTPD_DEF}):"
+		read option
+		if [ -z ${option} ]; then
+			option=${FTPD_DEF}
+		fi 
+		set_option autoconf "${option}" "${QUESTION_SET}"
+	done
+}
+
 # Start build 
 AUTOCONF="autoconf-2.69"
 PCRE="pcre-8.44"

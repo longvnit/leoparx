@@ -229,5 +229,16 @@ set_option() {
     echo "${opt_name}=${opt_value} is not a valid value."
 }
 
-set_option autoconf 1.2.2 "1.2.0 1.2.1"
+#set_option autoconf 1.2.2 "1.2.0 1.2.1"
+
+QUESTION_SET="1.2.0 1.2.1"
+FTPD_DEF="1.2.0"
+until [ "${VALID_OPTION}" = "yes" ]; do
+    echo -n "Please select FTP server you would like to use (${QUESTION_SET}, default ${FTPD_DEF}):"
+    read option
+    if [ -z ${option} ]; then
+        option=${FTPD_DEF}
+    fi 
+    set_option autoconf "${option}" "${QUESTION_SET}"
+done
 

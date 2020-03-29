@@ -1,2 +1,2 @@
 # leoparx
-A lightweight LEMP for CentOS
+A lightweight LXMP for CentOS (Apache/Nginx/MySQL/PHP)

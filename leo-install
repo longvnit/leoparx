@@ -9,9 +9,11 @@ fi
 # Please do not change
 SCRIPT_VERSION=1.0
 LEO_DIR="/leoparx"
-BUILD_DIR=/root/custombuild
-VERSION_PACKAGES="packages.leo"
-BUILD_OPTIONS="build_options.leo"
+BUILD_DIR="${LEO_DIR}/build"
+BUILD_CONF_DIR="${BUILD_DIR}/conf"
+VERSION_PACKAGES="version_packages.leo"
+VALID_VERSIONS="valid_versions.leo"
+BUILD_CONFIGS="configs.leo"
 BUILD_SERVER="http://files.directadmin.com/services/custombuild"
 mkdir -p ${BUILD_DIR}
 chmod 700 ${BUILD_DIR}
@@ -148,7 +150,7 @@ set_option() {
         if [ ${opt_value} == ${i} ]; then
             VALID_OPTION="yes"
             # Replace to new option value
-            sed -i "${opt_line_number}s/.*/${opt_name}=${opt_value}/" ${BUILD_DIR}/${BUILT_OPTIONS}
+            sed -i "${opt_line_number}s/.*/${opt_name}:${opt_value}/" ${BUILD_DIR}/${BUILT_OPTIONS}
             
             return
         fi
@@ -181,6 +183,18 @@ init_version_packages() {
     eval ${source_versions}
 }
 
+get_package_version() {
+	if [ -z ${1} ]; then
+		echo ""
+	else
+		local file_name=${BUILD_CONF_DIR}/${VERSION_PACKAGES}
+		local build_packages_version=`awk -F ":" '{gsub(/\./,"_",$1);gsub(/-/,"_",$1);print "local version_package_"$1"="$2}' ./${file_name}`
+		eval ${build_packages_version}
+		local package_name="version_package_${1}"
+		echo ${!package_name}
+	fi
+}
+
 create_options() {
 
 	until [ "${VALID_OPTION}" = "yes" ]; do
@@ -192,6 +206,17 @@ create_options() {
 		set_option autoconf "${option}" "${QUESTION_SET}"
 	done
 }
+
+WEBSERVER_ENABLE=yes
+WEBSERVER_TYPE=nginx
+PHP1_ENABLE=yes
+PHP1_VERSION=7.3
+PHP2_ENABLE=no
+PHP2_VERSION=5.6
+MYSQL_ENABLE=yes
+MYSQL_TYPE=mysql
+MYSQL_VERSION=5.6
+FTP_SERVER_ENABLE=yes
 
 # Start build 
 AUTOCONF="autoconf-2.69"

@@ -8,7 +8,7 @@ fi
 
 # Please do not change
 SCRIPT_VERSION=1.0
-LEO_DIR="/leoparx"
+LEO_DIR="/project/leoparx"
 BUILD_DIR="${LEO_DIR}/build"
 BUILD_CONF_DIR="${BUILD_DIR}/conf"
 VERSION_PACKAGES="version_packages.leo"
@@ -20,6 +20,18 @@ chmod 700 ${BUILD_DIR}
 
 OS=`uname`
 HOSTNAME=`hostname`
+
+
+WEBSERVER_ENABLE=yes
+WEBSERVER_TYPE=nginx
+PHP1_ENABLE=yes
+PHP1_VERSION=7.3
+PHP2_ENABLE=no
+PHP2_VERSION=5.6
+MYSQL_ENABLE=yes
+MYSQL_TYPE=mysql
+MYSQL_VERSION=5.6
+FTP_SERVER_ENABLE=yes
 
 if [ -s /etc/os-release ]; then
     OS_CENTOS_VER=`grep -m1 '^VERSION_ID=' /etc/os-release | cut -d. -f1 | cut -d'"' -f2`
@@ -83,21 +95,28 @@ else
 fi
 
 # Common pre-install
-yum install -y wget tar gcc gcc-c++ flex bison make openssl openssl-devel perl quota libaio \
-libcom_err-devel libcurl-devel gd zlib-devel zip unzip libcap-devel cronie bzip2 cyrus-sasl-devel perl-ExtUtils-Embed \
-autoconf automake libtool which patch mailx bzip2-devel lsof glibc-headers kernel-devel expat-devel \
-psmisc net-tools systemd-devel libdb-devel perl-DBI perl-Perl4-CoreLibs perl-libwww-perl xfsprogs rsyslog logrotate crontabs file kernel-headers
+#yum install -y wget tar gcc gcc-c++ flex bison make openssl openssl-devel perl quota libaio \
+#libcom_err-devel libcurl-devel gd zlib-devel zip unzip libcap-devel cronie bzip2 cyrus-sasl-devel perl-ExtUtils-Embed \
+#autoconf automake libtool which patch mailx bzip2-devel lsof glibc-headers kernel-devel expat-devel \
+#psmisc net-tools systemd-devel libdb-devel perl-DBI perl-Perl4-CoreLibs perl-libwww-perl xfsprogs rsyslog logrotate crontabs file kernel-headers
 
 # Download source file function 
 get_file() {
-    cd ${BUILD_DIR}
     local file_name=${1}
-    local file_url="http://files.directadmin.com/services/custombuild/${file_name}"
+	local dest_dir=${2}
+	local file_server=${3}
+	local file_url="${file_server}/${file_name}"
 
-    if [ ! -s ${file_name} ]; then
+	if [ -z "${dest_dir}" ]; then 
+		dest_file="./${file_name}"
+	else 
+		dest_file="${dest_dir}/${file_name}"
+	fi
+
+    if [ ! -s ${dest_file} ]; then
         while true ; do
-            wget ${file_url}
-            if [ ! -s ${file_name} ]; then
+            wget ${file_url} -O ${dest_file}
+            if [ ! -s ${dest_file} ]; then
                 echo "\n*** Download has failed, would you like to try to download again? (y,n): \n";
                 read yesno
                 if [ "${yesno}" = "n" ]; then
@@ -116,8 +135,8 @@ get_file() {
             if [[ "${yesno}" = "n" && ${USER_INPUT} != "f" ]]; then
                 break
             else
-                rm -rf ${BUILD_DIR}/${file_name}
-                get_file ${file_name}
+				rm -rf ${dest_file}
+                get_file ${file_url} -O ${dest_file}
             fi
             
             break
@@ -125,44 +144,18 @@ get_file() {
     fi
 }
 
-set_option() {
-    if [ -z "${3}" ]; then
-        echo "Three arguments are required for this function"
-        echo "set_option <option_name> <option_value> \"<options_valid>\""
-        return
-    fi
-
-    local opt_name=${1}
-    local opt_value=${2}
-    local valid_options=${3}
-
-    # Check option name 
-    local opt_line_number=`awk '{ print $0, NR }' ${BUILD_DIR}/${BUILT_OPTIONS}  | grep -m1 ${opt_name} | awk '{print $2}'`
-
-    if [ -z "${opt_line_number}" ]; then
-        echo "${opt_name} is not a valid option."
-        return
-    fi
-
-    # Check option value
-
-    for i in ${valid_options}; do
-        if [ ${opt_value} == ${i} ]; then
-            VALID_OPTION="yes"
-            # Replace to new option value
-            sed -i "${opt_line_number}s/.*/${opt_name}:${opt_value}/" ${BUILD_DIR}/${BUILT_OPTIONS}
-            
-            return
-        fi
-    done
-
-    echo "${opt_name}=${opt_value} is not a valid value."
+get_config_file() {
+	get_file "${1} ${BUILD_CONF_DIR}/${2} ${BUILD_SERVER}/build/configs"
+}
+get_source_file() {
+	get_file "${1} ${BUILD_CONF_DIR}/${2} ${BUILD_SERVER}/build/sources"
 }
 
 init_version_packages() {
-    cd ${BUILD_DIR}
-    if [ ! -s ${BUILD_DIR}/${VERSION_PACKAGES} ]; then
+	local version_packages=${BUILD_CONF_DIR}/${VERSION_PACKAGES}
+    if [ ! -s ${version_packages} ]; then
         get_file ${VERSION_PACKAGES}
+
     else
         while true; do
             echo "\n*** Would you like to re-download version packages? (y,n): \n";
@@ -172,14 +165,14 @@ init_version_packages() {
             if [[ "${yesno}" = "n" && ${USER_INPUT} != "f" ]]; then
                 break
             else
-                rm -rf ${BUILD_DIR}/${VERSION_PACKAGES}
+                rm -rf ${version_packages}
                 get_file ${VERSION_PACKAGES}
             fi
             break
         done
     fi
 
-    local source_versions=`awk -F ":" '{gsub(/\./,"_",$1);gsub(/-/,"_",$1);print "version_package_"$1"="$2}' ./${VERSION_PACKAGES}`
+    local source_versions=`awk -F ":" '{gsub(/\./,"_",$1);gsub(/-/,"_",$1);print "version_package_"$1"="$2}' ${version_packages}`
     eval ${source_versions}
 }
 
@@ -195,28 +188,100 @@ get_package_version() {
 	fi
 }
 
-create_options() {
+get_config_option() {
+	local result=""
+	if [ -z "${1}" ]; then
+		echo ${result}
+		return
+	fi 
 
+	local conf_file="./configs.leo"
+	#cat ${conf_file}
+	local build_configs=`awk -F "=" '{gsub(/\./,"_",$1);gsub(/-/,"_",$1);print "local conf_"$1"="$2}' ${conf_file}`
+	eval ${build_configs}
+	local conf_name="conf_${1}"
+	echo ${!conf_name}
+}
+
+get_valid_package_version() {
+	local valid_package_versions_file="${BUILD_CONF_DIR}/valid_package_versions.leo"
+	if [ -z "${1}" ]; then
+		echo ""
+        return
+	fi
+
+	local valid_versions=`awk -F ":" '{gsub(/\./,"_",$1);gsub(/-/,"_",$1);print "local valid_versions_"$1"=\""$2"\""}' ${valid_package_versions_file}`
+	eval ${valid_versions}
+	local result="valid_versions_${1}"
+	echo ${!result}
+}
+
+set_config_option() {
+    if [ -z "${3}" ]; then
+        echo "Three arguments are required for this function"
+        echo "set_config_option <option_name> <option_value> \"<options_valid>\""
+        return
+    fi
+
+    local opt_name=${1}
+    local opt_value=${2}
+    local valid_options=${3}\
+	local config_options_file=${BUILD_CONF_DIR}/configs.leo
+
+    # Check option name 
+    local opt_line_number=`awk '{ print $0, NR }' ${config_options_file}  | grep -m1 ${opt_name} | awk '{print $2}'`
+
+    if [ -z "${opt_line_number}" ]; then
+        echo "${opt_name} is not a valid option."
+        return
+    fi
+
+    # Check option value
+
+    for i in ${valid_options}; do
+        if [ ${opt_value} == ${i} ]; then
+            VALID_OPTION="yes"
+            # Replace to new option value
+            sed -i "${opt_line_number}s/.*/${opt_name}=${opt_value}/" ${config_options_file}
+            
+            return
+        fi
+    done
+
+    echo "${opt_name}=${opt_value} is not a valid value."
+}
+
+build_config_options() {
+
+	VALID_OPTION="no"
+	OPTIONS_SET=`get_valid_package_version php_version_opts`
 	until [ "${VALID_OPTION}" = "yes" ]; do
-		echo -n "Please select PHP version you would like to use (${QUESTION_SET}, default ${FTPD_DEF}):"
+		echo -n "Please select PHP version you would like to use (${OPTIONS_SET}, default ${PHP1_VERSION}):"
 		read option
-		if [ -z ${option} ]; then
-			option=${FTPD_DEF}
+		if [ -z "${option}" ]; then
+			option=${PHP1_VERSION}
 		fi 
-		set_option autoconf "${option}" "${QUESTION_SET}"
+		set_config_option php1_version "${option}" "${OPTIONS_SET}"
 	done
 }
 
-WEBSERVER_ENABLE=yes
-WEBSERVER_TYPE=nginx
-PHP1_ENABLE=yes
-PHP1_VERSION=7.3
-PHP2_ENABLE=no
-PHP2_VERSION=5.6
-MYSQL_ENABLE=yes
-MYSQL_TYPE=mysql
-MYSQL_VERSION=5.6
-FTP_SERVER_ENABLE=yes
+build_config_options
+
+
+get_config_options() {
+	WEBSERVER_ENABLE=`read_config_item webserver_enable`
+	WEBSERVER_TYPE=`read_config_item webserver_type`
+	PHP1_ENABLE=`read_config_item php1_enable`
+	PHP1_VERSION=`read_config_item php1_version`
+	PHP2_ENABLE=`read_config_item php2_enable`
+	PHP2_VERSION=`read_config_item php2_version`
+	MYSQL_ENABLE=`read_config_item mysql_enable`
+	MYSQL_TYPE=`read_config_item mysql_type`
+	MYSQL_VERSION=`read_config_item mysql_version`
+	FTP_SERVER_ENABLE=`read_config_item ftp_server_enable`
+}
+
+
 
 # Start build 
 AUTOCONF="autoconf-2.69"
@@ -716,19 +781,3 @@ build_php73() {
 }
 
 
-build_autoconf
-build_pcre
-build_pcre2
-build_libjpeg
-build_libpng
-build_libwebp
-build_libmcrypt
-build_mhash
-build_freetype2
-build_iconv
-build_icu
-build_libxml2
-build_libxslt
-build_libsodium
-
-build_php73

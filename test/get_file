@@ -237,7 +237,36 @@ get_package_version() {
 	echo ${!package_name}
 }
 
-get_package_version autoconf
+#get_package_version autoconf
+
+
+WEBSERVER_ENABLE=yes
+WEBSERVER_TYPE=nginx
+PHP1_ENABLE=yes
+PHP1_VERSION=7.3
+PHP2_ENABLE=no
+PHP2_VERSION=5.6
+MYSQL_ENABLE=yes
+MYSQL_TYPE=mysql
+MYSQL_VERSION=5.6
+FTP_SERVER_ENABLE=yes
+
+get_conf_item() {
+	local result=""
+	if [ -z "${1}" ]; then
+		echo ${result}
+		return
+	fi 
+
+	local conf_file="./configs.leo"
+	#cat ${conf_file}
+	local build_configs=`awk -F "=" '{gsub(/\./,"_",$1);gsub(/-/,"_",$1);print "local conf_"$1"="$2}' ${conf_file}`
+	eval ${build_configs}
+	local conf_name="conf_${1}"
+	echo ${!conf_name}
+}
+
+read_conf webserver_typex
 
 exit 1
 

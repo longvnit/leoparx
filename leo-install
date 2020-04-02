@@ -31,6 +31,7 @@ PHP2_VERSION=5.6
 MYSQL_ENABLE=yes
 MYSQL_TYPE=mysql
 MYSQL_VERSION=5.6
+PMA_ENABLE=yes
 FTP_SERVER_ENABLE=yes
 
 if [ -s /etc/os-release ]; then
@@ -251,23 +252,6 @@ set_config_option() {
     echo "${opt_name}=${opt_value} is not a valid value."
 }
 
-build_config_options() {
-
-	VALID_OPTION="no"
-	OPTIONS_SET=`get_valid_package_version php_version_opts`
-	until [ "${VALID_OPTION}" = "yes" ]; do
-		echo -n "Please select PHP version you would like to use (${OPTIONS_SET}, default ${PHP1_VERSION}):"
-		read option
-		if [ -z "${option}" ]; then
-			option=${PHP1_VERSION}
-		fi 
-		set_config_option php1_version "${option}" "${OPTIONS_SET}"
-	done
-}
-
-build_config_options
-
-
 get_config_options() {
 	WEBSERVER_ENABLE=`get_config_option webserver_enable`
 	WEBSERVER_TYPE=`get_config_option webserver_type`
@@ -280,6 +264,174 @@ get_config_options() {
 	MYSQL_VERSION=`get_config_option mysql_version`
 	FTP_SERVER_ENABLE=`get_config_option ftp_server_enable`
 }
+
+build_config_options() {
+
+	VALID_OPTION="no"
+	OPTIONS_SET="yes no"
+	until [ "${VALID_OPTION}" = "yes" ]; do
+		echo -n "Do you want to install webserver? (${OPTIONS_SET// //}, default: yes):"
+		read option
+		if [ -z "${option}" ]; then
+			option=${WEBSERVER_ENABLE}
+		fi 
+		set_config_option webserver_enable "${option}" "${OPTIONS_SET}"
+	done
+
+	get_config_options
+
+	if [ "${WEBSERVER_ENABLE}" == "yes" ]; then 
+		VALID_OPTION="no"
+		OPTIONS_SET="nginx apache"
+		until [ "${VALID_OPTION}" = "yes" ]; do
+			echo -n "Please select webserver type you would like to use (${OPTIONS_SET// //}, default: ${WEBSERVER_TYPE}):"
+			read option
+			if [ -z "${option}" ]; then
+				option=${WEBSERVER_TYPE}
+			fi 
+			set_config_option webserver_type "${option}" "${OPTIONS_SET}"
+		done
+	fi
+
+	VALID_OPTION="no"
+	OPTIONS_SET="yes no"
+	until [ "${VALID_OPTION}" = "yes" ]; do
+		echo -n "Do you want to install PHP? (${OPTIONS_SET// //}, default: yes):"
+		read option
+		if [ -z "${option}" ]; then
+			option=yes
+		fi 
+		set_config_option php1_enable "${option}" "${OPTIONS_SET}"
+	done
+
+	get_config_options
+	if [ "${PHP1_ENABLE}" == "yes" ]; then 
+		VALID_OPTION="no"
+		OPTIONS_SET=`get_valid_package_version php_version_opts`
+		until [ "${VALID_OPTION}" = "yes" ]; do
+			echo -n "Please select PHP version you would like to use (${OPTIONS_SET// //}, default: ${PHP1_VERSION}):"
+			read option
+			if [ -z "${option}" ]; then
+				option=${PHP1_VERSION}
+			fi 
+			set_config_option php1_version "${option}" "${OPTIONS_SET}"
+		done
+	fi
+
+	get_config_options
+	if [ "${PHP1_ENABLE}" == "yes" ]; then 
+		VALID_OPTION="no"
+		OPTIONS_SET="yes no"
+		until [ "${VALID_OPTION}" = "yes" ]; do
+			echo -n "Do you want to install PHP2? (${OPTIONS_SET// //}, default: yes):"
+			read option
+			if [ -z "${option}" ]; then
+				option=yes
+			fi 
+			set_config_option php2_enable "${option}" "${OPTIONS_SET}"
+		done
+
+		get_config_options
+		if [ "${PHP2_ENABLE}" == "yes" ]; then 
+			VALID_OPTION="no"
+			OPTIONS_SET=`get_valid_package_version php_version_opts`
+			until [ "${VALID_OPTION}" = "yes" ]; do
+				echo -n "Please select PHP version you would like to use (${OPTIONS_SET// //}, default: ${PHP2_VERSION}):"
+				read option
+				if [ -z "${option}" ]; then
+					option=${PHP2_VERSION}
+				fi
+
+				if [ "${option}" == "${PHP1_VERSION}" ]; then 
+					echo "Can't same PHP version with PHP1"
+				else 
+					set_config_option php2_version "${option}" "${OPTIONS_SET}"
+				fi
+			done	
+		fi 
+	fi
+
+
+	VALID_OPTION="no"
+	OPTIONS_SET="yes no"
+	until [ "${VALID_OPTION}" = "yes" ]; do
+		echo -n "Do you want to install MySQL Server? (${OPTIONS_SET// //}, default: yes):"
+		read option
+		if [ -z "${option}" ]; then
+			option=yes
+		fi 
+		set_config_option mysql_enable "${option}" "${OPTIONS_SET}"
+	done
+
+	get_config_options
+	if [ "${MYSQL_ENABLE}" == "yes" ]; then 
+		VALID_OPTION="no"
+		OPTIONS_SET="mysql mariadb"
+		until [ "${VALID_OPTION}" = "yes" ]; do
+			echo -n "Please select type of MySQL Server you would like to use (${OPTIONS_SET// //}, default: ${MYSQL_TYPE}):"
+			read option
+			if [ -z "${option}" ]; then
+				option=${MYSQL_TYPE}
+			fi
+
+			set_config_option mysql_type "${option}" "${OPTIONS_SET}"
+		done
+
+		get_config_options
+		if [ "${MYSQL_TYPE}" == "mariadb" ]; then 
+			VALID_OPTION="no"
+			OPTIONS_SET=`get_valid_package_version mariadb_version_opts`
+			until [ "${VALID_OPTION}" = "yes" ]; do
+				echo -n "Please select MariaDB version you would like to use (${OPTIONS_SET// //}, default: ${PHP2_VERSION}):"
+				read option
+				if [ -z "${option}" ]; then
+					option=${MYSQL_VERSION}
+				fi
+				set_config_option mysql_version "${option}" "${OPTIONS_SET}"
+			done
+		else 
+			VALID_OPTION="no"
+			OPTIONS_SET=`get_valid_package_version mysql_version_opts`
+			until [ "${VALID_OPTION}" = "yes" ]; do
+				echo -n "Please select MySQL version you would like to use (${OPTIONS_SET// //}, default: ${PHP2_VERSION}):"
+				read option
+				if [ -z "${option}" ]; then
+					option=${MYSQL_VERSION}
+				fi
+				set_config_option mysql_version "${option}" "${OPTIONS_SET}"
+			done
+		fi
+	fi
+
+	VALID_OPTION="no"
+	OPTIONS_SET="yes no"
+	until [ "${VALID_OPTION}" = "yes" ]; do
+		echo -n "Do you want to install PHPMyAdmin (${OPTIONS_SET// //}, default: yes):"
+		read option
+		if [ -z "${option}" ]; then
+			option=yes
+		fi 
+		set_config_option pma_enable "${option}" "${OPTIONS_SET}"
+	done
+
+	VALID_OPTION="no"
+	OPTIONS_SET="yes no"
+	until [ "${VALID_OPTION}" = "yes" ]; do
+		echo -n "Do you want to install FTP Server (Pure-FTPd) (${OPTIONS_SET// //}, default: yes):"
+		read option
+		if [ -z "${option}" ]; then
+			option=yes
+		fi 
+		set_config_option ftp_enable "${option}" "${OPTIONS_SET}"
+	done
+
+	get_config_options
+}
+
+build_config_options
+
+
+
 get_config_options
 echo ${PHP1_VERSION}
 

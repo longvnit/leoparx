@@ -266,7 +266,10 @@ get_conf_item() {
 	echo ${!conf_name}
 }
 
-read_conf webserver_typex
+TEXT="nginx apache"
+echo ${TEXT// /\/}
+
+#read_conf webserver_typex
 
 exit 1
 

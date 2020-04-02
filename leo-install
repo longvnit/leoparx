@@ -32,7 +32,7 @@ MYSQL_ENABLE=yes
 MYSQL_TYPE=mysql
 MYSQL_VERSION=5.6
 PMA_ENABLE=yes
-FTP_SERVER_ENABLE=yes
+FTP_ENABLE=yes
 
 if [ -s /etc/os-release ]; then
     OS_CENTOS_VER=`grep -m1 '^VERSION_ID=' /etc/os-release | cut -d. -f1 | cut -d'"' -f2`
@@ -229,27 +229,31 @@ set_config_option() {
     local valid_options=${3}\
 	local config_options_file=${BUILD_CONF_DIR}/configs.leo
 
-    # Check option name 
-    local opt_line_number=`awk '{ print $0, NR }' ${config_options_file}  | grep -m1 ${opt_name} | awk '{print $2}'`
+	# Check option name 
+	local opt_line_number=`awk '{ print $0, NR }' ${config_options_file}  | grep -m1 ${opt_name} | awk '{print $2}'`
 
-    if [ -z "${opt_line_number}" ]; then
-        echo "${opt_name} is not a valid option."
-        return
-    fi
+	if [ -z "${opt_line_number}" ]; then
+		echo "${opt_name} is not a valid option."
+		return
+	fi
 
-    # Check option value
+	# -f is force option
+	if [ "${valid_options}" != "-f" ]; then 
+		# Check option value
+		for i in ${valid_options}; do
+			if [ "${opt_value}" == "${i}" ]; then
+				VALID_OPTION="yes"
+				# Replace to new option value
+				sed -i "${opt_line_number}s/.*/${opt_name}=${opt_value}/" ${config_options_file}
+				
+				return
+			fi
+		done
 
-    for i in ${valid_options}; do
-        if [ ${opt_value} == ${i} ]; then
-            VALID_OPTION="yes"
-            # Replace to new option value
-            sed -i "${opt_line_number}s/.*/${opt_name}=${opt_value}/" ${config_options_file}
-            
-            return
-        fi
-    done
-
-    echo "${opt_name}=${opt_value} is not a valid value."
+		echo "${opt_name}=${opt_value} is not a valid value."
+	else
+		sed -i "${opt_line_number}s/.*/${opt_name}=${opt_value}/" ${config_options_file}
+	fi
 }
 
 get_config_options() {
@@ -262,7 +266,22 @@ get_config_options() {
 	MYSQL_ENABLE=`get_config_option mysql_enable`
 	MYSQL_TYPE=`get_config_option mysql_type`
 	MYSQL_VERSION=`get_config_option mysql_version`
-	FTP_SERVER_ENABLE=`get_config_option ftp_server_enable`
+	PMA_ENABLE=`get_config_option pma_enable`
+	FTP_ENABLE=`get_config_option pma_enablepma_enable`
+}
+
+set_config_options() {
+	set_config_option webserver_enable "${WEBSERVER_ENABLE}" -f
+	set_config_option webserver_type "${WEBSERVER_TYPE}" -f
+	set_config_option php1_enable "${PHP1_ENABLE}" -f
+	set_config_option php1_version "${PHP1_VERSION}" -f
+	set_config_option php2_enable "${PHP2_ENABLE}" -f
+	set_config_option php2_version "${PHP2_VERSION}" -f
+	set_config_option mysql_enable "${MYSQL_ENABLE}" -f
+	set_config_option mysql_type "${MYSQL_TYPE}" -f
+	set_config_option mysql_version "${MYSQL_VERSION}" -f
+	set_config_option pma_enable "${FTP_ENABLE}" -f
+	set_config_option pma_enable "${PMA_ENABLE}" -f
 }
 
 build_config_options() {
@@ -382,7 +401,7 @@ build_config_options() {
 			VALID_OPTION="no"
 			OPTIONS_SET=`get_valid_package_version mariadb_version_opts`
 			until [ "${VALID_OPTION}" = "yes" ]; do
-				echo -n "Please select MariaDB version you would like to use (${OPTIONS_SET// //}, default: ${PHP2_VERSION}):"
+				echo -n "Please select MariaDB version you would like to use (${OPTIONS_SET// //}, default: ${MYSQL_VERSION}):"
 				read option
 				if [ -z "${option}" ]; then
 					option=${MYSQL_VERSION}
@@ -393,7 +412,7 @@ build_config_options() {
 			VALID_OPTION="no"
 			OPTIONS_SET=`get_valid_package_version mysql_version_opts`
 			until [ "${VALID_OPTION}" = "yes" ]; do
-				echo -n "Please select MySQL version you would like to use (${OPTIONS_SET// //}, default: ${PHP2_VERSION}):"
+				echo -n "Please select MySQL version you would like to use (${OPTIONS_SET// //}, default: ${MYSQL_VERSION}):"
 				read option
 				if [ -z "${option}" ]; then
 					option=${MYSQL_VERSION}
@@ -428,12 +447,47 @@ build_config_options() {
 	get_config_options
 }
 
-build_config_options
+init_build() {
+	VALID_OPTION="no"
+	OPTIONS_SET="1 2"
+	BUILD_OPTION=1
+	until [ "${VALID_OPTION}" = "yes" ]; do
+		printf "\033[0;34m\n"
+		printf "*********************************\n"
+		printf "*** Welcome to Leoparx Server ***\n"
+		printf "*********************************\n"
+		printf "\033[0m\n"
+		echo "Please choose 1 in 2 options to start installation:"
+		echo "* 1) Install Leoparx with default settings: Nginx/PHP-FPM(7.3)/MariaDB(10.0.1)/phpMyAdmin/Pure-FTPd"
+		echo "* 2) Custom your install"
+		echo -n "Select option (1 or 2, default: 1):"
+		read option
+
+		if [ -z "${option}" ]; then 
+			option=1
+		fi
+		
+		if [ "${option}" == "1" ]; then 
+			VALID_OPTION=yes
+		elif [ "${option}" == "2" ]; then
+			VALID_OPTION=yes
+			BUILD_OPTION=2
+		fi
+	done
+
+	if [ "${BUILD_OPTION}" == "1" ]; then 
+		set_config_options
+	else 
+		build_config_options
+	fi
+}
+
+init_build
 
 
 
-get_config_options
-echo ${PHP1_VERSION}
+#get_config_options
+#echo ${PHP1_VERSION}
 
 
 

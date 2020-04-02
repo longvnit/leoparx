@@ -195,12 +195,12 @@ get_config_option() {
 		return
 	fi 
 
-	local conf_file="./configs.leo"
+	local config_file=${BUILD_CONF_DIR}/configs.leo
 	#cat ${conf_file}
-	local build_configs=`awk -F "=" '{gsub(/\./,"_",$1);gsub(/-/,"_",$1);print "local conf_"$1"="$2}' ${conf_file}`
+	local build_configs=`awk -F "=" '{gsub(/\./,"_",$1);gsub(/-/,"_",$1);print "local opt_"$1"="$2}' ${config_file}`
 	eval ${build_configs}
-	local conf_name="conf_${1}"
-	echo ${!conf_name}
+	local option_name="opt_${1}"
+	echo ${!option_name}
 }
 
 get_valid_package_version() {
@@ -269,17 +269,19 @@ build_config_options
 
 
 get_config_options() {
-	WEBSERVER_ENABLE=`read_config_item webserver_enable`
-	WEBSERVER_TYPE=`read_config_item webserver_type`
-	PHP1_ENABLE=`read_config_item php1_enable`
-	PHP1_VERSION=`read_config_item php1_version`
-	PHP2_ENABLE=`read_config_item php2_enable`
-	PHP2_VERSION=`read_config_item php2_version`
-	MYSQL_ENABLE=`read_config_item mysql_enable`
-	MYSQL_TYPE=`read_config_item mysql_type`
-	MYSQL_VERSION=`read_config_item mysql_version`
-	FTP_SERVER_ENABLE=`read_config_item ftp_server_enable`
+	WEBSERVER_ENABLE=`get_config_option webserver_enable`
+	WEBSERVER_TYPE=`get_config_option webserver_type`
+	PHP1_ENABLE=`get_config_option php1_enable`
+	PHP1_VERSION=`get_config_option php1_version`
+	PHP2_ENABLE=`get_config_option php2_enable`
+	PHP2_VERSION=`get_config_option php2_version`
+	MYSQL_ENABLE=`get_config_option mysql_enable`
+	MYSQL_TYPE=`get_config_option mysql_type`
+	MYSQL_VERSION=`get_config_option mysql_version`
+	FTP_SERVER_ENABLE=`get_config_option ftp_server_enable`
 }
+get_config_options
+echo ${PHP1_VERSION}
 
 
 

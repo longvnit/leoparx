@@ -269,6 +269,12 @@ get_conf_item() {
 TEXT="nginx apache"
 echo ${TEXT// /\/}
 
+h() {
+	echo "hee"
+}
+
+echo "long`h`"
+
 #read_conf webserver_typex
 
 exit 1

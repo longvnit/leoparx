@@ -11,12 +11,18 @@ SCRIPT_VERSION=1.0
 LEO_DIR="/project/leoparx"
 BUILD_DIR="${LEO_DIR}/build"
 BUILD_CONF_DIR="${BUILD_DIR}/conf"
-VERSION_PACKAGES="version_packages.leo"
+BUILD_SOURCE_DIR="${BUILD_DIR}/sources"
+VERSION_PACKAGES="packages.leo"
 VALID_VERSIONS="valid_versions.leo"
 BUILD_CONFIGS="configs.leo"
 BUILD_SERVER="http://files.directadmin.com/services/custombuild"
+
 mkdir -p ${BUILD_DIR}
+mkdir -p ${BUILD_CONF_DIR}
+mkdir -p ${BUILD_SOURCE_DIR}
 chmod 700 ${BUILD_DIR}
+chmod 700 ${BUILD_CONF_DIR}
+chmod 700 ${BUILD_SOURCE_DIR}
 
 OS=`uname`
 HOSTNAME=`hostname`
@@ -106,19 +112,19 @@ get_file() {
     local file_name=${1}
 	local dest_dir=${2}
 	local file_server=${3}
-	local file_url="${file_server}/${file_name}"
-
+	local file_url="${file_server}${file_name}"
+	
 	if [ -z "${dest_dir}" ]; then 
 		dest_file="./${file_name}"
 	else 
 		dest_file="${dest_dir}/${file_name}"
 	fi
 
-    if [ ! -s ${dest_file} ]; then
+    if [ ! -s "${dest_file}" ]; then
         while true ; do
             wget ${file_url} -O ${dest_file}
-            if [ ! -s ${dest_file} ]; then
-                echo "\n*** Download has failed, would you like to try to download again? (y,n): \n";
+            if [ ! -s "${dest_file}" ]; then
+                echo "*** Download has failed, would you like to try to download again? (y,n): ";
                 read yesno
                 if [ "${yesno}" = "n" ]; then
                     exit 1
@@ -129,7 +135,7 @@ get_file() {
         done
     else
         while true ; do
-            echo "\n*** Would you like to re-download? (y,n): \n";
+            echo "*** Would you like to re-download? (y,n): ";
             read yesno
 
             # Fix for force re-build
@@ -137,7 +143,7 @@ get_file() {
                 break
             else
 				rm -rf ${dest_file}
-                get_file ${file_url} -O ${dest_file}
+                get_file "${file_url}" -O "${dest_file}"
             fi
             
             break
@@ -146,10 +152,10 @@ get_file() {
 }
 
 get_config_file() {
-	get_file "${1} ${BUILD_CONF_DIR}/${2} ${BUILD_SERVER}/build/configs"
+	get_file "${1}" "${BUILD_CONF_DIR}/${2}" "${BUILD_SERVER}/build/configs"
 }
 get_source_file() {
-	get_file "${1} ${BUILD_CONF_DIR}/${2} ${BUILD_SERVER}/build/sources"
+	get_file "${1}" "${BUILD_SOURCE_DIR}/${2}" "${BUILD_SERVER}/build/sources"
 }
 
 init_version_packages() {
@@ -182,7 +188,7 @@ get_package_version() {
 		echo ""
 	else
 		local file_name=${BUILD_CONF_DIR}/${VERSION_PACKAGES}
-		local build_packages_version=`awk -F ":" '{gsub(/\./,"_",$1);gsub(/-/,"_",$1);print "local version_package_"$1"="$2}' ./${file_name}`
+		local build_packages_version=`awk -F ":" '{gsub(/\./,"_",$1);gsub(/-/,"_",$1);print "local version_package_"$1"="$2}' ${file_name}`
 		eval ${build_packages_version}
 		local package_name="version_package_${1}"
 		echo ${!package_name}
@@ -482,8 +488,6 @@ init_build() {
 	fi
 }
 
-init_build
-
 
 
 #get_config_options
@@ -510,16 +514,24 @@ PHP73="php-7.3.16"
 
 
 build_autoconf() {
-	cd ${BUILD_DIR}
+	cd ${BUILD_SOURCE_DIR}
+	local file_ext="tar.gz"
+	local file_name="autoconf-`get_package_version autoconf`"
 
-	echo "Start build autoconf"
-	echo "Downloading ..."
-	wget ${BUILD_SERVER}/${AUTOCONF}.tar.gz
+	if [ ! -s "${file_name}.${file_ext}" ]; then  
+		echo "Start build ${file_name}"
+		echo "Downloading ..."
+		get_source_file "${file_name}.${file_ext}"
+	fi
+
+	# Remove old folder
+	if [ -d "./${file_name}" ]; then
+		rm -rf "./${file_name}"
+	fi
 
 	echo "Extracting ..."
-	tar zxvf ${AUTOCONF}.tar.gz
-	
-	cd ${AUTOCONF}
+	tar zxvf "${file_name}.${file_ext}"
+	cd ${file_name}
 
 	./configure --prefix=/usr/local
 	LANG=c make
@@ -536,16 +548,24 @@ build_autoconf() {
 }
 
 build_pcre() {
-	cd ${BUILD_DIR}
+	cd ${BUILD_SOURCE_DIR}
+	local file_ext="tar.gz"
+	local file_name="pcre-`get_package_version pcre`"
 
-	echo "Start build PCRE"
-	echo "Downloading ..."
-	wget ${BUILD_SERVER}/${PCRE}.tar.gz
+	if [ ! -s "${file_name}.${file_ext}" ]; then  
+		echo "Start build ${file_name}"
+		echo "Downloading ..."
+		get_source_file "${file_name}.${file_ext}"
+	fi
+
+	# Remove old folder
+	if [ -d "./${file_name}" ]; then
+		rm -rf "./${file_name}"
+	fi
 
 	echo "Extracting ..."
-	tar zxvf ${PCRE}.tar.gz
-
-	cd ${PCRE}
+	tar zxvf "${file_name}.${file_ext}"
+	cd ${file_name}
 	
 	./configure --enable-utf8 --enable-unicode-properties --enable-jit
 	make CFLAGS=-fpic CPPFLAGS=-I/usr/kerberos/include
@@ -565,16 +585,24 @@ build_pcre() {
 
 
 build_pcre2() {
-	cd ${BUILD_DIR}
+	cd ${BUILD_SOURCE_DIR}
+	local file_ext="tar.gz"
+	local file_name="pcre2-`get_package_version pcre2`"
 
-	echo "Start build PCRE2"
-	echo "Downloading ..."
-	wget ${BUILD_SERVER}/${PCRE2}.tar.gz
+	if [ ! -s "${file_name}.${file_ext}" ]; then  
+		echo "Start build ${file_name}"
+		echo "Downloading ..."
+		get_source_file "${file_name}.${file_ext}"
+	fi
+	
+	# Remove old folder
+	if [ -d "./${file_name}" ]; then
+		rm -rf "./${file_name}"
+	fi
 
 	echo "Extracting ..."
-	tar zxvf ${PCRE2}.tar.gz
-
-	cd ${PCRE2}
+	tar zxvf "${file_name}.${file_ext}"
+	cd ${file_name}
 	
 	./configure --enable-jit
 	make -j ${CPU_CORES}
@@ -592,15 +620,23 @@ build_pcre2() {
 
 
 build_libjpeg() {
-	cd ${BUILD_DIR}
+	cd ${BUILD_SOURCE_DIR}
+	local file_ext="tar.gz"
+	local file_name="jpegsrc.`get_package_version jpegsrc`"
 
-	echo "Start build libjpeg"
-	echo "Downloading ..."
-	wget ${BUILD_SERVER}/${LIBJPEG}.tar.gz
+	if [ ! -s ${file_name} ]; then  
+		echo "Start build ${file_name}"
+		echo "Downloading ..."
+		get_source_file "${file_name}.${file_ext}"
+	fi
 
-	echo "Extracting ..."
-	tar zxvf ${LIBJPEG}.tar.gz
+	# Remove old folder
+	if [ -d "./jpeg-9d" ]; then
+		rm -rf "./jpeg-9d"
+	fi
 	
+	echo "Extracting ..."
+	tar zxvf "${file_name}.${file_ext}"
 	cd jpeg-9d
 
 	./configure
@@ -621,16 +657,24 @@ build_libjpeg() {
 
 
 build_libpng() {
-	cd ${BUILD_DIR}
+	cd ${BUILD_SOURCE_DIR}
+	local file_ext="tar.gz"
+	local file_name="libpng-`get_package_version libpng`"
 
-	echo "Start build libpng"
-	echo "Downloading ..."
-	wget ${BUILD_SERVER}/${LIBPNG}.tar.gz
+	if [ ! -s "${file_name}.${file_ext}" ]; then  
+		echo "Start build ${file_name}"
+		echo "Downloading ..."
+		get_source_file "${file_name}.${file_ext}"
+	fi
 
-	echo "Extracting ..."
-	tar zxvf ${LIBPNG}.tar.gz
+	# Remove old folder
+	if [ -d "./${file_name}" ]; then
+		rm -rf "./${file_name}"
+	fi
 	
-	cd ${LIBPNG}
+	echo "Extracting ..."
+	tar zxvf "${file_name}.${file_ext}"
+	cd ${file_name}
 
 	./configure --prefix=/usr/local
 	
@@ -650,16 +694,24 @@ build_libpng() {
 
 
 build_libwebp() {
-	cd ${BUILD_DIR}
+	cd ${BUILD_SOURCE_DIR}
+	local file_ext="tar.gz"
+	local file_name="libwebp-`get_package_version libwebp`"
 
-	echo "Start build libwebp"
-	echo "Downloading ..."
-	wget ${BUILD_SERVER}/libwebp/${LIBWEBP}.tar.gz
+	if [ ! -s "${file_name}.${file_ext}" ]; then  
+		echo "Start build ${file_name}"
+		echo "Downloading ..."
+		get_source_file "${file_name}.${file_ext}"
+	fi
 
-	echo "Extracting ..."
-	tar zxvf ${LIBWEBP}.tar.gz
+	# Remove old folder
+	if [ -d "./${file_name}" ]; then
+		rm -rf "./${file_name}"
+	fi
 	
-	cd ${LIBWEBP}
+	echo "Extracting ..."
+	tar zxvf "${file_name}.${file_ext}"
+	cd ${file_name}
 
 	./configure --prefix=/usr/local
 	
@@ -679,16 +731,24 @@ build_libwebp() {
 
 
 build_libmcrypt() {
-	cd ${BUILD_DIR}
+	cd ${BUILD_SOURCE_DIR}
+	local file_ext="tar.gz"
+	local file_name="libmcrypt-`get_package_version libmcrypt`"
 
-	echo "Start build libmcrypt"
-	echo "Downloading ..."
-	wget ${BUILD_SERVER}/${LIBMCRYPT}.tar.gz
+	if [ ! -s "${file_name}.${file_ext}" ]; then  
+		echo "Start build ${file_name}"
+		echo "Downloading ..."
+		get_source_file "${file_name}.${file_ext}"
+	fi
 
-	echo "Extracting ..."
-	tar zxvf ${LIBMCRYPT}.tar.gz
+	# Remove old folder
+	if [ -d "./${file_name}" ]; then
+		rm -rf "./${file_name}"
+	fi
 	
-	cd ${LIBMCRYPT}
+	echo "Extracting ..."
+	tar zxvf "${file_name}.${file_ext}"
+	cd ${file_name}
 
 	./configure --enable-ltdl-install
 
@@ -718,16 +778,24 @@ build_libmcrypt() {
 
 
 build_mhash() {
-	cd ${BUILD_DIR}
+	cd ${BUILD_SOURCE_DIR}
+	local file_ext="tar.gz"
+	local file_name="mhash-`get_package_version mhash`"
 
-	echo "Start build mhash"
-	echo "Downloading ..."
-	wget ${BUILD_SERVER}/${MHASH}.tar.gz
+	if [ ! -s "${file_name}.${file_ext}" ]; then  
+		echo "Start build ${file_name}"
+		echo "Downloading ..."
+		get_source_file "${file_name}.${file_ext}"
+	fi
 
-	echo "Extracting ..."
-	tar zxvf ${MHASH}.tar.gz
+	# Remove old folder
+	if [ -d "./${file_name}" ]; then
+		rm -rf "./${file_name}"
+	fi
 	
-	cd ${MHASH}
+	echo "Extracting ..."
+	tar zxvf "${file_name}.${file_ext}"
+	cd ${file_name}
 
 	./configure --prefix=/usr/local
 	
@@ -747,16 +815,24 @@ build_mhash() {
 
 
 build_freetype2() {
-	cd ${BUILD_DIR}
+	cd ${BUILD_SOURCE_DIR}
+	local file_ext="tar.gz"
+	local file_name="freetype2-`get_package_version freetype2`"
 
-	echo "Start build freetype2"
-	echo "Downloading ..."
-	wget ${BUILD_SERVER}/${FREETYPE2}.tar.gz
+	if [ ! -s "${file_name}.${file_ext}" ]; then  
+		echo "Start build ${file_name}"
+		echo "Downloading ..."
+		get_source_file "${file_name}.${file_ext}"
+	fi
+	
+	# Remove old folder
+	if [ -d "./${file_name}" ]; then
+		rm -rf "./${file_name}"
+	fi
 
 	echo "Extracting ..."
-	tar zxvf ${FREETYPE2}.tar.gz
-	
-	cd ${FREETYPE2}
+	tar zxvf "${file_name}.${file_ext}"
+	cd ${file_name}
 
 	./configure --enable-freetype-config
 	
@@ -775,16 +851,24 @@ build_freetype2() {
 }
 
 build_iconv() {
-	cd ${BUILD_DIR}
+	cd ${BUILD_SOURCE_DIR}
+	local file_ext="tar.gz"
+	local file_name="iconv-`get_package_version iconv`"
 
-	echo "Start build iconv"
-	echo "Downloading ..."
-	wget ${BUILD_SERVER}/${ICONV}.tar.gz
+	if [ ! -s "${file_name}.${file_ext}" ]; then  
+		echo "Start build ${file_name}"
+		echo "Downloading ..."
+		get_source_file "${file_name}.${file_ext}"
+	fi
 
-	echo "Extracting ..."
-	tar zxvf ${ICONV}.tar.gz
+	# Remove old folder
+	if [ -d "./${file_name}" ]; then
+		rm -rf "./${file_name}"
+	fi
 	
-	cd ${ICONV}
+	echo "Extracting ..."
+	tar zxvf "${file_name}.${file_ext}"
+	cd ${file_name}
 
 	./configure --prefix=/usr/local --enable-extra-encodings
 	
@@ -805,16 +889,25 @@ build_iconv() {
 }
 
 build_icu() {
-	cd ${BUILD_DIR}
+	cd ${BUILD_SOURCE_DIR}
+	local file_ext="tar.gz"
+	local file_name="icu4c-`get_package_version icu4c`"
 
-	echo "Start build icu"
-	echo "Downloading ..."
-	wget ${BUILD_SERVER}/${ICU}.tgz
+	if [ ! -s "${file_name}.${file_ext}" ]; then  
+		echo "Start build ${file_name}"
+		echo "Downloading ..."
+		get_source_file "${file_name}.${file_ext}"
+	fi
 
-	echo "Extracting ..."
-	tar zxvf ${ICU}.tgz
+	# Remove old folder
+	if [ -d "./icu" ]; then
+		rm -rf "./icu"
+	fi
 	
-	cd icu/source
+	echo "Extracting ..."
+	tar zxvf "${file_name}.${file_ext}"
+	
+	cd ./icu/source
 	
 	mkdir -p /usr/local/icu
 	./configure --prefix=/usr/local/icu --enable-rpath
@@ -835,16 +928,24 @@ build_icu() {
 }
 
 build_libxml2() {
-	cd ${BUILD_DIR}
+	cd ${BUILD_SOURCE_DIR}
+	local file_ext="tar.gz"
+	local file_name="libxml2-`get_package_version libxml2`"
 
-	echo "Start build libxml2"
-	echo "Downloading ..."
-	wget ${BUILD_SERVER}/${LIBXML2}.tar.gz
+	if [ ! -s "${file_name}.${file_ext}" ]; then  
+		echo "Start build ${file_name}"
+		echo "Downloading ..."
+		get_source_file "${file_name}.${file_ext}"
+	fi
 
-	echo "Extracting ..."
-	tar zxvf ${LIBXML2}.tar.gz
+	# Remove old folder
+	if [ -d "./${file_name}" ]; then
+		rm -rf "./${file_name}"
+	fi
 	
-	cd ${LIBXML2}
+	echo "Extracting ..."
+	tar zxvf "${file_name}.${file_ext}"
+	cd ${file_name}
 
 	./configure --prefix=/usr/local --without-python --with-zlib=/usr
 	
@@ -864,16 +965,24 @@ build_libxml2() {
 
 
 build_libxslt() {
-	cd ${BUILD_DIR}
+	cd ${BUILD_SOURCE_DIR}
+	local file_ext="tar.gz"
+	local file_name="libxslt-`get_package_version libxslt`"
 
-	echo "Start build libxslt"
-	echo "Downloading ..."
-	wget ${BUILD_SERVER}/${LIBXSTL}.tar.gz
+	if [ ! -s "${file_name}.${file_ext}" ]; then  
+		echo "Start build ${file_name}"
+		echo "Downloading ..."
+		get_source_file "${file_name}.${file_ext}"
+	fi
+	
+	# Remove old folder
+	if [ -d "./${file_name}" ]; then
+		rm -rf "./${file_name}"
+	fi
 
 	echo "Extracting ..."
-	tar zxvf ${LIBXSTL}.tar.gz
-	
-	cd ${LIBXSTL}
+	tar zxvf "${file_name}.${file_ext}"
+	cd ${file_name}
 
 	./configure --prefix=/usr/local --with-libxml-prefix=/usr/local
 	
@@ -894,16 +1003,24 @@ build_libxslt() {
 }
 
 build_libsodium() {
-	cd ${BUILD_DIR}
+	cd ${BUILD_SOURCE_DIR}
+	local file_ext="tar.gz"
+	local file_name="libsodium-`get_package_version libsodium`"
 
-	echo "Start build libsodium"
-	echo "Downloading ..."
-	wget ${BUILD_SERVER}/${LIBSODIUM}.tar.gz
+	if [ ! -s "${file_name}.${file_ext}" ]; then  
+		echo "Start build ${file_name}"
+		echo "Downloading ..."
+		get_source_file "${file_name}.${file_ext}"
+	fi
 
-	echo "Extracting ..."
-	tar zxvf ${LIBSODIUM}.tar.gz
+	# Remove old folder
+	if [ -d "./${file_name}" ]; then
+		rm -rf "./${file_name}"
+	fi
 	
-	cd ${LIBSODIUM}
+	echo "Extracting ..."
+	tar zxvf "${file_name}.${file_ext}"
+	cd ${file_name}
 
 	./configure --prefix=/usr/local
 	
@@ -921,7 +1038,7 @@ build_libsodium() {
 	echo "Build libsodium completed"
 }
 
-build_php73() {
+build_php() {
 	cd ${BUILD_DIR}
 
 	echo "Start build php73"
@@ -987,5 +1104,66 @@ build_php73() {
 
 	echo "Build php73 completed"
 }
+
+build_nginx() {
+
+}
+
+build_apache() {
+
+}
+
+build_pma() {
+
+}
+
+build_ftp() {
+
+}
+
+build_all() {
+	build_autoconf
+	build_pcre
+	build_pcre2
+
+	if [ "${WEBSERVER_ENABLE}" == "yes" ]: then 
+		if [ "${WEBSERVER_TYPE}" == "nginx" ]; then 
+			build_nginx
+		elif [ "${WEBSERVER_TYPE}" == "apache" ]; then
+			build_apache
+		fi
+	fi
+
+	if [ "${PHP1_ENABLE}" == "yes" ]; then
+		# Build required libraries
+		build_libjpeg
+		build_libpng
+		build_libwebp
+		build_libmcrypt
+		build_mhash
+		build_freetype2
+		build_iconv
+		build_icu
+		build_libxml2
+		build_libxslt
+		build_libsodium
+
+		build_php `get_package_version ${PHP1_VERSION}`
+
+		if [ ${PHP2_ENABLE} == "yes" ]; then 
+			build_php `get_package_version ${PHP2_VERSION}`
+		fi
+	fi
+
+	if [ ${PMA_ENABLE} == "yes" ]; then 
+		build_pma
+	fi 
+
+	if [ ${FTP_ENABLE} == "yes" ]; then
+		build_pma
+	fi
+}
+
+
 
 

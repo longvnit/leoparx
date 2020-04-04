@@ -3,7 +3,7 @@
 
 if [ "$(id -u)" != "0" ]; then
 	echo "You must be root to execute the script. Exiting."
-	exit 1
+	do_exit 1
 fi
 
 # Please do not change
@@ -92,7 +92,7 @@ if [ -s ${BUILD_DIR}/leo.pid ]; then
 
 	if [ "${check_pid}" != "" ] ; then
 		printf "This script may already be running in another process. Exiting.."
-        exit 1
+        do_exit 1
 	else
 		echo $$ > ${BUILD_DIR}/leo.pid
 	fi
@@ -100,6 +100,11 @@ else
 	touch ${BUILD_DIR}/leo.pid
 	echo $$ > ${BUILD_DIR}/leo.pid
 fi
+
+do_exit() {
+	rm -rf ${BUILD_DIR}/leo.pid
+	exit ${1}
+}
 
 # Common pre-install
 #yum install -y wget tar gcc gcc-c++ flex bison make openssl openssl-devel perl quota libaio \
@@ -127,7 +132,7 @@ get_file() {
                 echo "*** Download has failed, would you like to try to download again? (y,n): ";
                 read yesno
                 if [ "${yesno}" = "n" ]; then
-                    exit 1
+                    do_exit 1
                 fi
             else
                 break
@@ -537,7 +542,7 @@ build_autoconf() {
 	LANG=c make
 	if [ $? -ne 0 ]; then
 		printf "The make has failed. Exiting"
-		exit
+		do_exit 1
 	fi
 
 	echo "Make complete"
@@ -571,7 +576,7 @@ build_pcre() {
 	make CFLAGS=-fpic CPPFLAGS=-I/usr/kerberos/include
 	if [ $? -ne 0 ]; then
 		printf "The make has failed. Exiting"
-		exit
+		do_exit 1
 	fi
 
 	echo "Make complete"
@@ -608,7 +613,7 @@ build_pcre2() {
 	make -j ${CPU_CORES}
 	if [ $? -ne 0 ]; then
 		printf "The make has failed. Exiting"
-		exit
+		do_exit 1
 	fi
 
 	echo "Make complete"
@@ -645,7 +650,7 @@ build_libjpeg() {
 
 	if [ $? -ne 0 ]; then
 		printf "The make has failed. Exiting"
-		exit
+		do_exit 1
 	fi
 
 	echo "Make complete"
@@ -682,7 +687,7 @@ build_libpng() {
 
 	if [ $? -ne 0 ]; then
 		printf "The make has failed. Exiting"
-		exit
+		do_exit 1
 	fi
 
 	echo "Make complete"
@@ -719,7 +724,7 @@ build_libwebp() {
 
 	if [ $? -ne 0 ]; then
 		printf "The make has failed. Exiting"
-		exit
+		do_exit 1
 	fi
 
 	echo "Make complete"
@@ -756,7 +761,7 @@ build_libmcrypt() {
 
 	if [ $? -ne 0 ]; then
 		printf "The make has failed. Exiting"
-		exit
+		do_exit 1
 	fi
 
 	echo "Make complete"
@@ -803,7 +808,7 @@ build_mhash() {
 
 	if [ $? -ne 0 ]; then
 		printf "The make has failed. Exiting"
-		exit
+		do_exit 1
 	fi
 
 	echo "Make complete"
@@ -840,7 +845,7 @@ build_freetype2() {
 
 	if [ $? -ne 0 ]; then
 		printf "The make has failed. Exiting"
-		exit
+		do_exit 1
 	fi
 
 	echo "Make complete"
@@ -876,7 +881,7 @@ build_iconv() {
 
 	if [ $? -ne 0 ]; then
 		printf "The make has failed. Exiting"
-		exit
+		do_exit 1
 	fi
 
 	echo "Make complete"
@@ -915,7 +920,7 @@ build_icu() {
 
 	if [ $? -ne 0 ]; then
 		printf "The make has failed. Exiting"
-		exit
+		do_exit 1
 	fi
 
 	echo "Make complete"
@@ -953,7 +958,7 @@ build_libxml2() {
 
 	if [ $? -ne 0 ]; then
 		printf "The make has failed. Exiting"
-		exit
+		do_exit 1
 	fi
 
 	echo "Make complete"
@@ -990,7 +995,7 @@ build_libxslt() {
 
 	if [ $? -ne 0 ]; then
 		printf "The make has failed. Exiting"
-		exit
+		do_exit 1
 	fi
 
 	echo "Make complete"
@@ -1028,7 +1033,7 @@ build_libsodium() {
 
 	if [ $? -ne 0 ]; then
 		printf "The make has failed. Exiting"
-		exit
+		do_exit 1
 	fi
 
 	echo "Make complete"
@@ -1095,7 +1100,7 @@ build_php() {
 
 	if [ $? -ne 0 ]; then
 		printf "The make has failed. Exiting"
-		exit
+		do_exit 1
 	fi
 
 	echo "Make complete"
@@ -1106,19 +1111,19 @@ build_php() {
 }
 
 build_nginx() {
-
+	echo "build nginx"
 }
 
 build_apache() {
-
+	echo "build nginx"
 }
 
 build_pma() {
-
+	echo "build nginx"
 }
 
 build_ftp() {
-
+	echo "build nginx"
 }
 
 build_all() {
@@ -1126,7 +1131,7 @@ build_all() {
 	build_pcre
 	build_pcre2
 
-	if [ "${WEBSERVER_ENABLE}" == "yes" ]: then 
+	if [ "${WEBSERVER_ENABLE}" == "yes" ]; then 
 		if [ "${WEBSERVER_TYPE}" == "nginx" ]; then 
 			build_nginx
 		elif [ "${WEBSERVER_TYPE}" == "apache" ]; then
@@ -1165,5 +1170,15 @@ build_all() {
 }
 
 
+# MAIN
+case "${1}" in 
+	"") echo "Welcome to Leoparx Server" ;;
+	h|help) echo "Help function" ;;
+	update) echo "Update function" ;;
+	show_configs) echo "Show configs" ;;
+	build_all) echo "Build all" ;;
+	set_option) echo "Set config option" ;;
+esac
 
-
+# Exit 
+do_exit 1

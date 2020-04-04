@@ -275,6 +275,10 @@ h() {
 
 echo "long`h`"
 
+ nginx_xconfig_files="fastcgi.conf fastcgi.conf.default fastcgi_params fastcgi_params.default koi-utf koi-win mime.types mime.types.default nginx.conf nginx.conf.default nginx-defaults.conf nginx-directoryindex.conf nginx-fastcgi-settings.conf nginx-gzip.conf nginx-includes.conf nginx-info.conf nginx-userdir.conf nginx-vhosts.conf scgi_params uwsgi_params uwsgi_params.default webapps.conf webapps.hostname.conf webapps_settings.conf webapps.ssl.conf win-utf"
+
+echo ${nginx_xconfig_files}
+
 #read_conf webserver_typex
 
 exit 1

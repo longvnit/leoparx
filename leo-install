@@ -8,7 +8,7 @@ fi
 
 # Please do not change
 SCRIPT_VERSION=1.0
-LEO_DIR="/project/leoparx"
+LEO_DIR="/leoparx"
 BUILD_DIR="${LEO_DIR}/build"
 BUILD_CONF_DIR="${BUILD_DIR}/conf"
 BUILD_SOURCE_DIR="${BUILD_DIR}/sources"
@@ -101,8 +101,16 @@ else
 	echo $$ > ${BUILD_DIR}/leo.pid
 fi
 
-do_exit() {
+remove_lock_file() {
 	rm -rf ${BUILD_DIR}/leo.pid
+}
+
+do_exit() {
+	if [ ! -z "${2}" ]; then 
+		echo ${2}
+	fi
+
+	remove_lock_file
 	exit ${1}
 }
 
@@ -1032,8 +1040,7 @@ build_libsodium() {
 	make
 
 	if [ $? -ne 0 ]; then
-		printf "The make has failed. Exiting"
-		do_exit 1
+		do_exit 1 "The make has failed. Exiting"
 	fi
 
 	echo "Make complete"
@@ -1099,8 +1106,7 @@ build_php() {
 	C_INCLUDE_PATH=/usr/kerberos/include make -j ${CPU_CORES}
 
 	if [ $? -ne 0 ]; then
-		printf "The make has failed. Exiting"
-		do_exit 1
+		do_exit 1 "The make has failed. Exiting"
 	fi
 
 	echo "Make complete"
@@ -1111,7 +1117,82 @@ build_php() {
 }
 
 build_nginx() {
-	echo "build nginx"
+	get_config_options
+	if [ "${WEBSERVER_ENABLE}" != "yes" ] || [ "${WEBSERVER_TYPE}" != "nginx" ]; then 
+		do_exit 1 "You can't install Nginx"
+	fi
+
+	# Add users
+	useradd -s /bin/false --no-create-home nginx
+
+	# Create default document root
+	if [ ! -d "${LEO_DIR}/nginx/html"  ]; then 
+		mkdir -p "${LEO_DIR}/nginx/html"
+	fi
+
+	cd ${BUILD_SOURCE_DIR}
+	local file_ext="tar.gz"
+	local file_name="nginx-`get_package_version nginx`"
+
+	if [ ! -s "${file_name}.${file_ext}" ]; then  
+		echo "Start build ${file_name}"
+		echo "Downloading ..."
+		get_source_file "${file_name}.${file_ext}"
+	fi
+	
+	# Remove old folder
+	if [ -d "./${file_name}" ]; then
+		rm -rf "./${file_name}"
+	fi
+
+	echo "Extracting ..."
+	tar zxvf "${file_name}.${file_ext}"
+	cd ${file_name}
+
+	echo "Start configure nginx"
+	local nginx_configure_file="${BUILD_DIR}/configure/nginx/configure.nginx"
+	sh ${nginx_configure_file}
+
+	if [ $? -ne 0 ]; then
+		printf "\n*** There was an error while trying to configure Nginx. Check the ${nginx_configure_file} file\n"
+		do_exit 1
+	fi
+
+	C_INCLUDE_PATH=/usr/kerberos/include make -j ${CPU_CORES}
+
+	if [ $? -ne 0 ]; then
+		do_exit 1 "The make has failed. Exiting"
+	fi
+
+	echo "Make complete"
+	
+	make install
+
+	echo "Build Nginx completed"
+
+	# Nginx configuring..
+	echo "Nginx configuring.."
+
+	# Copy file configs
+	local nginx_config_files="fastcgi.conf fastcgi.conf.default fastcgi_params fastcgi_params.default koi-utf koi-win mime.types mime.types.default nginx.conf nginx.conf.default nginx-defaults.conf nginx-directoryindex.conf nginx-fastcgi-settings.conf nginx-gzip.conf nginx-includes.conf nginx-info.conf nginx-userdir.conf nginx-vhosts.conf scgi_params uwsgi_params uwsgi_params.default webapps.conf webapps.hostname.conf webapps_settings.conf webapps.ssl.conf win-utf"
+
+	for i in ${nginx_config_files}
+	do
+		\cp -rf "${BUILD_DIR}/configure/nginx/conf/${i}" ${LEO_DIR}/nginx/conf/
+	done
+
+	# Set PHP version for Nginx Apps
+
+	# Generate CA
+	
+
+	# Enable nginx service
+	\cp -rf "${BUILD_DIR}/configure/nginx/nginx.service" /lib/systemd/system/nginx.service
+	chmod 644 /lib/systemd/system/nginx.service
+	systemctl enable nginx.service
+	
+	echo "Restarting nginx..."
+	systemctl restart nginx.service
 }
 
 build_apache() {
@@ -1178,6 +1259,7 @@ case "${1}" in
 	show_configs) echo "Show configs" ;;
 	build_all) echo "Build all" ;;
 	set_option) echo "Set config option" ;;
+	nginx) build_nginx
 esac
 
 # Exit 

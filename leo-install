@@ -501,6 +501,31 @@ init_build() {
 	fi
 }
 
+create_ssl() {
+	SSL_DIR="${LEO_DIR}/ssl"
+	if [ ! -d "${SSL_DIR}" ]; then 
+		mkdir -p ${SSL_DIR}
+		chmod 640 ${SSL_DIR}
+	fi 
+
+	if [ ! -e "${SSL_DIR}/server.key" ] || [ ! -e "${SSL_DIR}/server.crt" ]; then
+		openssl req -x509 -newkey rsa:2048 -keyout "${SSL_DIR}/server.key" -out "${SSL_DIR}/server.crt" -days 9999 -nodes -config ${BUILD_DIR}/configure/ssl/cert.txt
+
+		chmod 600 "${SSL_DIR}/server.key"
+		chmod 600 "${SSL_DIR}/server.crt"
+
+		# Build crt with Comodo CA
+		cat "${SSL_DIR}/server.crt" > "${SSL_DIR}/server.combined"
+		cat "${BUILD_DIR}/configure/ssl/comodo.ca" >> "${SSL_DIR}/server.combined"
+		chmod 600 "${SSL_DIR}/server.combined"
+	fi
+
+	if [ ! -e "${SSL_DIR}/dhparams.pem" ]; then 
+		openssl dhparam -out "${SSL_DIR}/dhparams.pem" 2048
+		chmod 600 "${SSL_DIR}/dhparams.pem"
+	fi
+}
+
 
 
 #get_config_options
@@ -1182,8 +1207,10 @@ build_nginx() {
 	done
 
 	# Set PHP version for Nginx Apps
-
-	# Generate CA
+	local php_version=`echo "${PHP1_VERSION}" | tr '[:upper:]' '[:lower:]'`
+	sed -i "s/{{php_opt_1}}/${php_version}/g" ${LEO_DIR}/nginx/conf/nginx-userdir.conf
+	sed -i "s/{{php_opt_1}}/${php_version}/g" ${LEO_DIR}/nginx/conf/nginx-vhosts.conf
+	sed -i "s/{{php_opt_1}}/${php_version}/g" ${LEO_DIR}/nginx/conf/webapps_settings.conf
 	
 
 	# Enable nginx service
@@ -1204,7 +1231,82 @@ build_pma() {
 }
 
 build_ftp() {
-	echo "build nginx"
+	get_config_options
+	if [ "${FTP_ENABLE}" != "yes" ]; then 
+		do_exit 1 "You can't install Pure-FTPd"
+	fi
+
+	cd ${BUILD_SOURCE_DIR}
+	local file_ext="tar.gz"
+	local file_name="pure-ftpd-`get_package_version pure-ftpd`"
+
+	if [ ! -s "${file_name}.${file_ext}" ]; then  
+		echo "Start build ${file_name}"
+		echo "Downloading ..."
+		get_source_file "${file_name}.${file_ext}"
+	fi
+	
+	# Remove old folder
+	if [ -d "./${file_name}" ]; then
+		rm -rf "./${file_name}"
+	fi
+
+	echo "Extracting ..."
+	tar zxvf "${file_name}.${file_ext}"
+	cd ${file_name}
+
+	echo "Start configure nginx"
+	local configure_file="${BUILD_DIR}/configure/pure-ftpd/configure.pure-ftpd"
+	sh ${configure_file}
+
+	if [ $? -ne 0 ]; then
+		printf "\n*** There was an error while trying to configure Pure-FTPd. Check the ${configure_file} file\n"
+		do_exit 1
+	fi
+
+	make -j ${CPU_CORES}
+
+	if [ $? -ne 0 ]; then
+		do_exit 1 "The make has failed. Exiting"
+	fi
+
+	echo "Make complete"
+	
+	make install
+
+	echo "Build Pure-FTPd completed"
+
+	# Pure-FTPd configuring..
+	echo "Pure-FTPd configuring..."
+
+	if [ ! -e /etc/proftpd.passwd ]; then
+		touch /etc/proftpd.passwd
+		chmod 640 /etc/proftpd.passwd
+	fi
+
+	pure-pw mkdb /etc/pureftpd.pdb -f /etc/proftpd.passwd
+
+	# Generate CA for pure-ftpd
+	if [ ! -e "${LEO_DIR}/ssl/pure-ftpd.pem" ]; then 
+		create_ssl
+
+		cat "${LEO_DIR}/ssl/server.key" > "${LEO_DIR}/ssl/pure-ftpd.pem"
+		cat "${LEO_DIR}/ssl/server.combined" >> "${LEO_DIR}/ssl/pure-ftpd.pem"
+		chmod 600 "${LEO_DIR}/ssl/pure-ftpd.pem"
+	fi
+
+	if [ ! -e /etc/logrotate.d/pure-ftpd ] && [ ${OS} != "FreeBSD" ]; then
+		wget ${WGET_CONNECT_OPTIONS} ${WEBPATH}/pure-ftpd.logrotate -O /etc/logrotate.d/pure-ftpd
+	fi
+	
+
+	# Enable nginx service
+	\cp -rf "${BUILD_DIR}/configure/nginx/pure-ftpd.service" /lib/systemd/system/pure-ftpd.service
+	chmod 644 /lib/systemd/system/pure-ftpd.service
+	systemctl enable pure-ftpd.service
+	
+	echo "Restarting Pure-FTPd..."
+	systemctl restart pure-ftpd.service
 }
 
 build_all() {
@@ -1259,7 +1361,8 @@ case "${1}" in
 	show_configs) echo "Show configs" ;;
 	build_all) echo "Build all" ;;
 	set_option) echo "Set config option" ;;
-	nginx) build_nginx
+	nginx) build_nginx ;;
+	create_ssl) create_ssl ;;
 esac
 
 # Exit 

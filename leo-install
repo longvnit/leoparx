@@ -41,9 +41,9 @@ PMA_ENABLE=yes
 FTP_ENABLE=yes
 
 if [ -s /etc/os-release ]; then
-    OS_CENTOS_VER=`grep -m1 '^VERSION_ID=' /etc/os-release | cut -d. -f1 | cut -d'"' -f2`
+	OS_CENTOS_VER=`grep -m1 '^VERSION_ID=' /etc/os-release | cut -d. -f1 | cut -d'"' -f2`
 else
-    OS_CENTOS_VER=`grep -m1 -o '[0-9]*\.[0-9]*' /etc/redhat-release | cut -d. -f1`
+	OS_CENTOS_VER=`grep -m1 -o '[0-9]*\.[0-9]*' /etc/redhat-release | cut -d. -f1`
 fi
 
 if [ "`cat /proc/cpuinfo | grep -F 'model name' | wc -l`" -gt 0 ]; then
@@ -81,8 +81,8 @@ fi
 
 # Create directory for leoparx if not exists
 if [ ! -d "${LEO_DIR}" ]; then
-    mkdir -p ${LEO_DIR}
-    chmod 755 ${LEO_DIR}
+	mkdir -p ${LEO_DIR}
+	chmod 755 ${LEO_DIR}
 fi
 
 # Check this script is running
@@ -92,7 +92,7 @@ if [ -s ${BUILD_DIR}/leo.pid ]; then
 
 	if [ "${check_pid}" != "" ] ; then
 		printf "This script may already be running in another process. Exiting.."
-        do_exit 1
+		do_exit 1
 	else
 		echo $$ > ${BUILD_DIR}/leo.pid
 	fi
@@ -122,7 +122,7 @@ do_exit() {
 
 # Download source file function 
 get_file() {
-    local file_name=${1}
+	local file_name=${1}
 	local dest_dir=${2}
 	local file_server=${3}
 	local file_url="${file_server}${file_name}"
@@ -173,27 +173,27 @@ get_source_file() {
 
 init_version_packages() {
 	local version_packages=${BUILD_CONF_DIR}/${VERSION_PACKAGES}
-    if [ ! -s ${version_packages} ]; then
-        get_file ${VERSION_PACKAGES}
+	if [ ! -s ${version_packages} ]; then
+		get_file ${VERSION_PACKAGES}
 
-    else
-        while true; do
-            echo "\n*** Would you like to re-download version packages? (y,n): \n";
-            read yesno
+	else
+		while true; do
+			echo "\n*** Would you like to re-download version packages? (y,n): \n";
+			read yesno
 
-            # Fix for force re-build
-            if [[ "${yesno}" = "n" && ${USER_INPUT} != "f" ]]; then
-                break
-            else
-                rm -rf ${version_packages}
-                get_file ${VERSION_PACKAGES}
-            fi
-            break
-        done
-    fi
+			# Fix for force re-build
+			if [[ "${yesno}" = "n" && ${USER_INPUT} != "f" ]]; then
+				break
+			else
+				rm -rf ${version_packages}
+				get_file ${VERSION_PACKAGES}
+			fi
+			break
+		done
+	fi
 
-    local source_versions=`awk -F ":" '{gsub(/\./,"_",$1);gsub(/-/,"_",$1);print "version_package_"$1"="$2}' ${version_packages}`
-    eval ${source_versions}
+	local source_versions=`awk -F ":" '{gsub(/\./,"_",$1);gsub(/-/,"_",$1);print "version_package_"$1"="$2}' ${version_packages}`
+	eval ${source_versions}
 }
 
 get_package_version() {
@@ -237,15 +237,15 @@ get_valid_package_version() {
 }
 
 set_config_option() {
-    if [ -z "${3}" ]; then
-        echo "Three arguments are required for this function"
-        echo "set_config_option <option_name> <option_value> \"<options_valid>\""
-        return
-    fi
+	if [ -z "${3}" ]; then
+		echo "Three arguments are required for this function"
+		echo "set_config_option <option_name> <option_value> \"<options_valid>\""
+		return
+	fi
 
-    local opt_name=${1}
-    local opt_value=${2}
-    local valid_options=${3}\
+	local opt_name=${1}
+	local opt_value=${2}
+	local valid_options=${3}
 	local config_options_file=${BUILD_CONF_DIR}/configs.leo
 
 	# Check option name 

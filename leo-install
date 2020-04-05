@@ -133,35 +133,35 @@ get_file() {
 		dest_file="${dest_dir}/${file_name}"
 	fi
 
-    if [ ! -s "${dest_file}" ]; then
-        while true ; do
-            wget ${file_url} -O ${dest_file}
-            if [ ! -s "${dest_file}" ]; then
-                echo "*** Download has failed, would you like to try to download again? (y,n): ";
-                read yesno
-                if [ "${yesno}" = "n" ]; then
-                    do_exit 1
-                fi
-            else
-                break
-            fi
-        done
-    else
-        while true ; do
-            echo "*** Would you like to re-download? (y,n): ";
-            read yesno
+	if [ ! -s "${dest_file}" ]; then
+		while true ; do
+			wget ${file_url} -O ${dest_file}
+			if [ ! -s "${dest_file}" ]; then
+				echo "*** Download has failed, would you like to try to download again? (y,n): ";
+				read yesno
+				if [ "${yesno}" = "n" ]; then
+					do_exit 1
+				fi
+			else
+				break
+			fi
+		done
+	else
+		while true ; do
+			echo "*** Would you like to re-download? (y,n): ";
+			read yesno
 
-            # Fix for force re-build
-            if [[ "${yesno}" = "n" && ${USER_INPUT} != "f" ]]; then
-                break
-            else
+			# Fix for force re-build
+			if [[ "${yesno}" = "n" && ${USER_INPUT} != "f" ]]; then
+				break
+			else
 				rm -rf ${dest_file}
-                get_file "${file_url}" -O "${dest_file}"
-            fi
-            
-            break
-        done
-    fi
+				get_file "${file_url}" -O "${dest_file}"
+			fi
+
+			break
+		done
+	fi
 }
 
 get_config_file() {

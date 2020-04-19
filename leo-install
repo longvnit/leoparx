@@ -1139,6 +1139,133 @@ build_php() {
 	make install
 
 	echo "Build php73 completed"
+
+	get_config_options
+
+	if [ "${PHP1_ENABLE}" != "yes" ]; then 
+		do_exit 1 "You can't install Nginx"
+	fi
+
+	local php_suffix_version=`echo ${PHP1_VERSION//./}`
+
+	# Add app user
+	useradd -s /bin/false --no-create-home www
+
+	# Install PHP1
+	cd ${BUILD_SOURCE_DIR}
+	local file_ext="tar.gz"
+	local file_name="php-`get_package_version ${php_suffix_version}`"
+
+	if [ ! -s "${file_name}.${file_ext}" ]; then  
+		echo "Start build ${file_name}"
+		echo "Downloading ..."
+		get_source_file "${file_name}.${file_ext}"
+	fi
+	
+	# Remove old folder
+	if [ -d "./${file_name}" ]; then
+		rm -rf "./${file_name}"
+	fi
+
+	echo "Extracting ..."
+	tar zxvf "${file_name}.${file_ext}"
+	cd ${file_name}
+
+	echo "Start configure ${file_name}"
+	local php_configure_file="${BUILD_DIR}/configure/php/configure.php-${php_suffix_version}"
+	sh ${php_configure_file}
+
+	C_INCLUDE_PATH=/usr/kerberos/include make -j ${CPU_CORES}
+
+	if [ $? -ne 0 ]; then
+		do_exit 1 "The make has failed. Exiting"
+	fi
+
+	echo "Make complete"
+	
+	make install
+
+	echo "Build ${file_name} completed"
+
+	# Make php-fpm.d folder 
+	mkdir -p ${LEO_DIR}/php${php_suffix_version}/etc/php-fpm.d
+
+	# Copy file configs
+	local php_config_files="php-fpm.conf"
+
+	for i in ${php_config_files}
+	do
+		\cp -rf "${BUILD_DIR}/configure/php/etc/${i}" ${LEO_DIR}/php${php_suffix_version}/etc/
+	done
+
+	# Enable nginx service
+	\cp -rf "${BUILD_DIR}/configure/php/php-fpm${php_suffix_version}.service" /lib/systemd/system/php-fpm${php_suffix_version}.service
+	chmod 644 /lib/systemd/system/php-fpm${php_suffix_version}.service
+	systemctl enable php-fpm${php_suffix_version}.service
+	
+	echo "Restarting php${php_suffix_version}.service..."
+	systemctl restart php-fpm${php_suffix_version}.service
+
+	# Install PHP2
+	if [ "${PHP2_ENABLE}" == "yes" ]; then 
+		local php_suffix_version=`echo ${PHP1_VERSION//./}`
+
+		# Install PHP2
+		cd ${BUILD_SOURCE_DIR}
+		local file_ext="tar.gz"
+		local file_name="php-`get_package_version ${PHP2_VERSION}`"
+
+		if [ ! -s "${file_name}.${file_ext}" ]; then  
+			echo "Start build ${file_name}"
+			echo "Downloading ..."
+			get_source_file "${file_name}.${file_ext}"
+		fi
+		
+		# Remove old folder
+		if [ -d "./${file_name}" ]; then
+			rm -rf "./${file_name}"
+		fi
+
+		echo "Extracting ..."
+		tar zxvf "${file_name}.${file_ext}"
+		cd ${file_name}
+
+		echo "Start configure ${file_name}"
+		local php_configure_file="${BUILD_DIR}/configure/php/configure.php-${PHP2_VERSION}"
+		sh ${php_configure_file}
+
+		C_INCLUDE_PATH=/usr/kerberos/include make -j ${CPU_CORES}
+
+		if [ $? -ne 0 ]; then
+			do_exit 1 "The make has failed. Exiting"
+		fi
+
+		echo "Make complete"
+		
+		make install
+
+		echo "Build ${file_name} completed"
+
+		# Make php-fpm.d folder 
+		mkdir -p ${LEO_DIR}/php${php_suffix_version}/etc/php-fpm.d
+
+		# Copy file configs
+		local php_config_files="php-fpm.conf"
+
+		for i in ${php_config_files}
+		do
+			\cp -rf "${BUILD_DIR}/configure/php/etc/${i}" ${LEO_DIR}/php${php_suffix_version}/etc/
+		done
+
+		# Enable nginx service
+		\cp -rf "${BUILD_DIR}/configure/php/php-fpm${php_suffix_version}.service" /lib/systemd/system/php-fpm${php_suffix_version}.service
+		chmod 644 /lib/systemd/system/php-fpm${php_suffix_version}.service
+		systemctl enable php-fpm${php_suffix_version}.service
+		
+		echo "Restarting php${php_suffix_version}.service..."
+		systemctl restart php-fpm${php_suffix_version}.service
+
+	fi
 }
 
 build_nginx() {
@@ -1147,7 +1274,7 @@ build_nginx() {
 		do_exit 1 "You can't install Nginx"
 	fi
 
-	# Add users
+	# Add user
 	useradd -s /bin/false --no-create-home nginx
 
 	# Create default document root

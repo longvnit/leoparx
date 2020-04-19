@@ -1076,70 +1076,6 @@ build_libsodium() {
 }
 
 build_php() {
-	cd ${BUILD_DIR}
-
-	echo "Start build php73"
-	echo "Downloading ..."
-	wget ${BUILD_SERVER}/${PHP73}.tar.gz
-
-	echo "Extracting ..."
-	tar zxvf ${PHP73}.tar.gz
-	
-	cd ${PHP73}
-
-	'./configure' \
-	'--enable-embed' \
-	'--prefix=/usr/local/php73' \
-	'--program-suffix=73' \
-	'--enable-fpm' \
-	'--with-fpm-systemd' \
-	'--with-litespeed' \
-	'--with-config-file-scan-dir=/usr/local/php73/lib/php.conf.d' \
-	'--with-curl' \
-	'--with-gd' \
-	'--with-gettext' \
-	'--with-jpeg-dir=/usr/local/lib' \
-	'--with-freetype-dir=/usr/local/lib' \
-	'--with-libxml-dir=/usr/local/lib' \
-	'--with-kerberos' \
-	'--with-openssl' \
-	'--with-mhash' \
-	'--with-mysql-sock=/var/lib/mysql/mysql.sock' \
-	'--with-mysqli=mysqlnd' \
-	'--with-pcre-regex=/usr/local' \
-	'--with-pdo-mysql=mysqlnd' \
-	'--with-pear' \
-	'--with-png-dir=/usr/local/lib' \
-	'--with-sodium=/usr/local' \
-	'--with-webp-dir=/usr/local/lib' \
-	'--with-xsl' \
-	'--with-zlib' \
-	'--enable-zip' \
-	'--without-libzip' \
-	'--with-iconv=/usr/local' \
-	'--enable-bcmath' \
-	'--enable-calendar' \
-	'--enable-exif' \
-	'--enable-ftp' \
-	'--enable-sockets' \
-	'--enable-soap' \
-	'--enable-mbstring' \
-	'--with-icu-dir=/usr/local/icu' \
-	'--enable-intl' \
-	"$@"
-
-	C_INCLUDE_PATH=/usr/kerberos/include make -j ${CPU_CORES}
-
-	if [ $? -ne 0 ]; then
-		do_exit 1 "The make has failed. Exiting"
-	fi
-
-	echo "Make complete"
-	
-	make install
-
-	echo "Build php73 completed"
-
 	get_config_options
 
 	if [ "${PHP1_ENABLE}" != "yes" ]; then 
@@ -1213,7 +1149,7 @@ build_php() {
 		# Install PHP2
 		cd ${BUILD_SOURCE_DIR}
 		local file_ext="tar.gz"
-		local file_name="php-`get_package_version ${PHP2_VERSION}`"
+		local file_name="php-`get_package_version ${php_suffix_version}`"
 
 		if [ ! -s "${file_name}.${file_ext}" ]; then  
 			echo "Start build ${file_name}"
@@ -1231,7 +1167,7 @@ build_php() {
 		cd ${file_name}
 
 		echo "Start configure ${file_name}"
-		local php_configure_file="${BUILD_DIR}/configure/php/configure.php-${PHP2_VERSION}"
+		local php_configure_file="${BUILD_DIR}/configure/php/configure.php-${php_suffix_version}"
 		sh ${php_configure_file}
 
 		C_INCLUDE_PATH=/usr/kerberos/include make -j ${CPU_CORES}

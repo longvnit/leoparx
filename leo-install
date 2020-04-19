@@ -1075,7 +1075,7 @@ build_libsodium() {
 	echo "Build libsodium completed"
 }
 
-build_php() {
+build_php_opt() {
 	get_config_options
 
 	local php_version=${1}
@@ -1145,6 +1145,32 @@ build_php() {
 		ln -s ${LEO_DIR}/php${php_suffix_version}/bin/php${php_suffix_version} /usr/bin/php
 	}
 }
+
+build_php() {
+	get_config_options
+
+	if [ "${PHP1_ENABLE}" == "yes" ]; then
+		# Build required libraries
+		build_libjpeg
+		build_libpng
+		build_libwebp
+		build_libmcrypt
+		build_mhash
+		build_freetype2
+		build_iconv
+		build_icu
+		build_libxml2
+		build_libxslt
+		build_libsodium
+
+		build_php_opt ${PHP1_VERSION}
+
+		if [ "${PHP2_ENABLE}" == "yes" ]; then 
+			build_php_opt ${PHP2_VERSION}
+		fi
+	fi
+}
+
 
 build_nginx() {
 	get_config_options
@@ -1232,7 +1258,26 @@ build_apache() {
 }
 
 build_pma() {
-	echo "build nginx"
+	if [ "${PHP1_ENABLE}" != "yes" ]; then 
+		do_exit "You need install PHP first"
+	fi
+
+	cd ${BUILD_SOURCE_DIR}
+	local file_ext="tar.gz"
+	local file_name="phpMyAdmin-`get_package_version pma`-all-languages"
+
+	if [ ! -s "${file_name}.${file_ext}" ]; then  
+		echo "Downloading ..."
+		get_source_file "${file_name}.${file_ext}"
+	fi
+
+	tar zxvf "${file_name}.${file_ext}"
+	rm -rf "${LEO_DIR}/nginx/html/${file_name}"
+	rm -rf "${LEO_DIR}/nginx/html/pma"
+	mv ${file_name} "${LEO_DIR}/nginx/html/${file_name}"
+	ln -s "${LEO_DIR}/nginx/html/${file_name}" "${LEO_DIR}/nginx/html/pma"
+
+	echo "Install PhpMyAdmin completed"
 }
 
 build_ftp() {
@@ -1327,26 +1372,7 @@ build_all() {
 		fi
 	fi
 
-	if [ "${PHP1_ENABLE}" == "yes" ]; then
-		# Build required libraries
-		build_libjpeg
-		build_libpng
-		build_libwebp
-		build_libmcrypt
-		build_mhash
-		build_freetype2
-		build_iconv
-		build_icu
-		build_libxml2
-		build_libxslt
-		build_libsodium
-
-		build_php ${PHP1_VERSION}
-
-		if [ ${PHP2_ENABLE} == "yes" ]; then 
-			build_php ${PHP2_VERSION}
-		fi
-	fi
+	build_php
 
 	if [ ${PMA_ENABLE} == "yes" ]; then 
 		build_pma
@@ -1364,9 +1390,12 @@ case "${1}" in
 	h|help) echo "Help function" ;;
 	update) echo "Update function" ;;
 	show_configs) echo "Show configs" ;;
-	build_all) echo "Build all" ;;
+	build_all) build_all ;;
+	php) build_php ;;
 	set_option) echo "Set config option" ;;
 	nginx) build_nginx ;;
+	ftp) build_ftp ;;
+	pma) build_pma ;;
 	create_ssl) create_ssl ;;
 esac
 

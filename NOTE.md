@@ -1,0 +1,1 @@
+./certbot-auto certonly -d abc.com -d www.abc.com --webroot -w /var/www/html --non-interactive --agree-tos -m admin@abc.com

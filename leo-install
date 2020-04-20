@@ -1359,6 +1359,26 @@ build_ftp() {
 	systemctl restart pure-ftpd.service
 }
 
+build_letsencrypt() {
+
+	echo "Start installation letsencrypt.."
+	if [ -d "${LEO_DIR}/certbot" ]; then 
+		rm -rf "${LEO_DIR}/certbot"
+	fi
+
+	echo "Start installation git command"
+	yum install git -y
+
+	echo "Cloning certbot repo"
+	cd ${LEO_DIR}
+	git clone https://github.com/certbot/certbot.git
+
+	cd ${LEO_DIR}/certbot
+	./certbot-auto --install-only --non-interactive
+
+	echo "Install letsencrypt completed"
+}
+
 build_all() {
 	build_autoconf
 	build_pcre
@@ -1392,11 +1412,11 @@ case "${1}" in
 	show_configs) echo "Show configs" ;;
 	build_all) build_all ;;
 	php) build_php ;;
-	set_option) echo "Set config option" ;;
+	set_option) build_config_options ;;
 	nginx) build_nginx ;;
 	ftp) build_ftp ;;
 	pma) build_pma ;;
-	create_ssl) create_ssl ;;
+	letsencrypt) build_letsencrypt ;;
 esac
 
 # Exit 

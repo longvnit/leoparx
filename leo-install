@@ -1389,6 +1389,15 @@ build_letsencrypt() {
 	./certbot-auto --install-only --non-interactive
 
 	echo "Install letsencrypt completed"
+
+	if [ -e "/etc/cron.d/certbot" ]; then
+		rm -rf /etc/cron.d/certbot
+	fi
+	
+	# Install crontab
+	# Check server type to add reload command 
+	sed -i "s/{webserver_type}/${WEBSERVER_TYPE}/g" /etc/cron.d/certbot
+	chmod +x /etc/cron.d/certbot
 }
 
 build_all() {

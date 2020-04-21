@@ -8,7 +8,7 @@ Easy to manage server
      |--- /build
           |
           |--- /sources
-          |--- /configure
+          |--- /configurations
           |    |--- /php73
           |         |--- /configure.php73
           |         |--- /etc

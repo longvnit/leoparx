@@ -1,0 +1,8 @@
+/leoparx/applications/nginx/var/log/*log {
+	missingok
+	notifempty
+	sharedscripts
+	postrotate
+		[ ! -f /leoparx/applications/nginx/var/run/nginx.pid ] || kill -USR1 `cat /leoparx/applications/nginx/var/run/nginx.pid`
+	endscript
+}

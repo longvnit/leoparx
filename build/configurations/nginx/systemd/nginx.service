@@ -1,0 +1,19 @@
+# nginx binary startup for Leoparx servers
+
+[Unit]
+Description=The nginx HTTP and reverse proxy server
+After=syslog.target network.target remote-fs.target nss-lookup.target
+
+[Service]
+Type=forking
+PIDFile=/leoparx/applications/nginx/var/run/nginx.pid
+ExecStartPre=/leoparx/applications/nginx/sbin/nginx -t -c /leoparx/applications/nginx/conf/nginx.conf
+ExecStart=/leoparx/applications/nginx/sbin/nginx -c /leoparx/applications/nginx/conf/nginx.conf
+ExecReload=/bin/kill -s HUP $MAINPID
+ExecStop=/bin/kill -s QUIT $MAINPID
+PrivateTmp=true
+LimitMEMLOCK=infinity
+LimitNOFILE=65535
+
+[Install]
+WantedBy=multi-user.target

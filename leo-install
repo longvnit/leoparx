@@ -9,12 +9,15 @@ fi
 # Please do not change
 SCRIPT_VERSION=1.0
 LEO_DIR="/leoparx"
+LEO_APP_DIR="${LEO_DIR}/applications"
 BUILD_DIR="${LEO_DIR}/build"
-BUILD_CONF_DIR="${BUILD_DIR}/conf"
+BUILD_CONF_DIR="${BUILD_DIR}/configurations"
 BUILD_SOURCE_DIR="${BUILD_DIR}/sources"
-VERSION_PACKAGES="packages.leo"
-VALID_VERSIONS="valid_versions.leo"
-BUILD_CONFIGS="configs.leo"
+#VERSION_PACKAGES=".packages.leo"
+PACKAGES=".packages.leo"
+VERSIONS_PACKAGES=".versions_packages.leo"
+#VALID_PACKAGE_VERSIONS
+BUILD_CONF_FILE=".configurations.leo"
 BUILD_SERVER="http://files.directadmin.com/services/custombuild"
 
 mkdir -p ${BUILD_DIR}
@@ -166,16 +169,16 @@ get_file() {
 }
 
 get_config_file() {
-	get_file "${1}" "${BUILD_CONF_DIR}/${2}" "${BUILD_SERVER}/build/configs"
+	get_file "${1}" "${BUILD_CONF_DIR}/${2}" "${BUILD_CONF_DIR}"
 }
 get_source_file() {
-	get_file "${1}" "${BUILD_SOURCE_DIR}/${2}" "${BUILD_SERVER}/build/sources"
+	get_file "${1}" "${BUILD_SOURCE_DIR}/${2}" "${BUILD_SOURCE_DIR}"
 }
 
 init_version_packages() {
-	local version_packages=${BUILD_CONF_DIR}/${VERSION_PACKAGES}
+	local version_packages=${BUILD_CONF_DIR}/${VERSIONS_PACKAGES}
 	if [ ! -s ${version_packages} ]; then
-		get_file ${VERSION_PACKAGES}
+		get_file ${VERSIONS_PACKAGES}
 
 	else
 		while true; do
@@ -187,7 +190,7 @@ init_version_packages() {
 				break
 			else
 				rm -rf ${version_packages}
-				get_file ${VERSION_PACKAGES}
+				get_file ${VERSIONS_PACKAGES}
 			fi
 			break
 		done
@@ -201,7 +204,7 @@ get_package_version() {
 	if [ -z ${1} ]; then
 		echo ""
 	else
-		local file_name=${BUILD_CONF_DIR}/${VERSION_PACKAGES}
+		local file_name=${BUILD_CONF_DIR}/${VERSIONS_PACKAGES}
 		local build_packages_version=`awk -F ":" '{gsub(/\./,"_",$1);gsub(/-/,"_",$1);print "local version_package_"$1"="$2}' ${file_name}`
 		eval ${build_packages_version}
 		local package_name="version_package_${1}"
@@ -216,7 +219,7 @@ get_config_option() {
 		return
 	fi 
 
-	local config_file=${BUILD_CONF_DIR}/configs.leo
+	local config_file=${BUILD_CONF_DIR}/${BUILD_CONF_FILE}
 	#cat ${conf_file}
 	local build_configs=`awk -F "=" '{gsub(/\./,"_",$1);gsub(/-/,"_",$1);print "local opt_"$1"="$2}' ${config_file}`
 	eval ${build_configs}
@@ -225,13 +228,13 @@ get_config_option() {
 }
 
 get_valid_package_version() {
-	local valid_package_versions_file="${BUILD_CONF_DIR}/valid_package_versions.leo"
+	local valid_versions_packages_file="${BUILD_CONF_DIR}/${VERSIONS_PACKAGES}"
 	if [ -z "${1}" ]; then
 		echo ""
         return
 	fi
 
-	local valid_versions=`awk -F ":" '{gsub(/\./,"_",$1);gsub(/-/,"_",$1);print "local valid_versions_"$1"=\""$2"\""}' ${valid_package_versions_file}`
+	local valid_versions=`awk -F ":" '{gsub(/\./,"_",$1);gsub(/-/,"_",$1);print "local valid_versions_"$1"=\""$2"\""}' ${valid_versions_packages_file}`
 	eval ${valid_versions}
 	local result="valid_versions_${1}"
 	echo ${!result}
@@ -247,7 +250,7 @@ set_config_option() {
 	local opt_name=${1}
 	local opt_value=${2}
 	local valid_options=${3}
-	local config_options_file=${BUILD_CONF_DIR}/configs.leo
+	local config_options_file=${BUILD_CONF_DIR}/${BUILD_CONF_FILE}
 
 	# Check option name 
 	local opt_line_number=`awk '{ print $0, NR }' ${config_options_file}  | grep -m1 ${opt_name} | awk '{print $2}'`
@@ -1117,7 +1120,7 @@ build_php_opt() {
 	cd ${file_name}
 
 	echo "Start configure ${file_name}"
-	local php_configure_file="${BUILD_DIR}/configure/php/configure.php-${php_suffix_version}"
+	local php_configure_file="${BUILD_CONF_DIR}/php${php_suffix_version}/configure.php-${php_suffix_version}"
 	sh ${php_configure_file}
 
 	C_INCLUDE_PATH=/usr/kerberos/include make -j ${CPU_CORES}
@@ -1133,14 +1136,14 @@ build_php_opt() {
 	echo "Build ${file_name} completed"
 
 	# Make php-fpm.d folder 
-	mkdir -p ${LEO_DIR}/php${php_suffix_version}/etc/php-fpm.d
+	mkdir -p ${LEO_APP_DIR}/php${php_suffix_version}/etc/php-fpm.d
 
 	# Copy file configs
 	local php_config_files="php-fpm.conf"
 
 	for i in ${php_config_files}
 	do
-		\cp -rf "${BUILD_DIR}/configure/php/etc/${i}" ${LEO_DIR}/php${php_suffix_version}/etc/
+		\cp -rf "${BUILD_CONF_DIR}/php${php_suffix_version}/etc/${i}" ${LEO_APP_DIR}/php${php_suffix_version}/etc/
 	done
 
 	# Enable nginx service
@@ -1154,7 +1157,7 @@ build_php_opt() {
 	# Make symlinks for default
 	if [ "${PHP1_VERSION}" == "${1}" ]; then
 		rm -rf /usr/bin/php 
-		ln -s ${LEO_DIR}/php${php_suffix_version}/bin/php${php_suffix_version} /usr/bin/php
+		ln -s ${LEO_APP_DIR}/php${php_suffix_version}/bin/php${php_suffix_version} /usr/bin/php
 	}
 }
 
@@ -1194,8 +1197,8 @@ build_nginx() {
 	useradd -s /bin/false --no-create-home nginx
 
 	# Create default document root
-	if [ ! -d "${LEO_DIR}/nginx/html"  ]; then 
-		mkdir -p "${LEO_DIR}/nginx/html"
+	if [ ! -d "${LEO_APP_DIR}/nginx/html"  ]; then 
+		mkdir -p "${LEO_APP_DIR}/nginx/html"
 	fi
 
 	cd ${BUILD_SOURCE_DIR}
@@ -1246,18 +1249,18 @@ build_nginx() {
 
 	for i in ${nginx_config_files}
 	do
-		\cp -rf "${BUILD_DIR}/configure/nginx/conf/${i}" ${LEO_DIR}/nginx/conf/
+		\cp -rf "${BUILD_CONF_DIR}/nginx/conf/${i}" ${LEO_APP_DIR}/nginx/conf/
 	done
 
 	# Set PHP version for Nginx Apps
 	local php_version=`echo "${PHP1_VERSION}" | tr '[:upper:]' '[:lower:]'`
-	sed -i "s/{{php_opt_1}}/${php_version}/g" ${LEO_DIR}/nginx/conf/nginx-userdir.conf
-	sed -i "s/{{php_opt_1}}/${php_version}/g" ${LEO_DIR}/nginx/conf/nginx-vhosts.conf
-	sed -i "s/{{php_opt_1}}/${php_version}/g" ${LEO_DIR}/nginx/conf/webapps_settings.conf
+	sed -i "s/{{php_opt_1}}/${php_version}/g" ${LEO_APP_DIR}/nginx/conf/nginx-userdir.conf
+	sed -i "s/{{php_opt_1}}/${php_version}/g" ${LEO_APP_DIR}/nginx/conf/nginx-vhosts.conf
+	sed -i "s/{{php_opt_1}}/${php_version}/g" ${LEO_APP_DIR}/nginx/conf/webapps_settings.conf
 	
 
 	# Enable nginx service
-	\cp -rf "${BUILD_DIR}/configure/nginx/nginx.service" /lib/systemd/system/nginx.service
+	\cp -rf "${BUILD_CONF_DIR}/nginx/nginx.service" /lib/systemd/system/nginx.service
 	chmod 644 /lib/systemd/system/nginx.service
 	systemctl enable nginx.service
 	
@@ -1284,10 +1287,13 @@ build_pma() {
 	fi
 
 	tar zxvf "${file_name}.${file_ext}"
-	rm -rf "${LEO_DIR}/nginx/html/${file_name}"
-	rm -rf "${LEO_DIR}/nginx/html/pma"
-	mv ${file_name} "${LEO_DIR}/nginx/html/${file_name}"
-	ln -s "${LEO_DIR}/nginx/html/${file_name}" "${LEO_DIR}/nginx/html/pma"
+
+	if [ ${WEBSERVER_TYPE} == "nginx" ]; then
+		rm -rf "${LEO_APP_DIR}/nginx/html/${file_name}"
+		rm -rf "${LEO_APP_DIR}/nginx/html/pma"
+		mv ${file_name} "${LEO_APP_DIR}/nginx/html/${file_name}"
+		ln -s "${LEO_APP_DIR}/nginx/html/${file_name}" "${LEO_APP_DIR}/nginx/html/pma"
+	fi
 
 	echo "Install PhpMyAdmin completed"
 }
@@ -1363,7 +1369,7 @@ build_ftp() {
 	
 
 	# Enable nginx service
-	\cp -rf "${BUILD_DIR}/configure/nginx/pure-ftpd.service" /lib/systemd/system/pure-ftpd.service
+	\cp -rf "${BUILD_CONF_DIR}/pure-ftpd/pure-ftpd.service" /lib/systemd/system/pure-ftpd.service
 	chmod 644 /lib/systemd/system/pure-ftpd.service
 	systemctl enable pure-ftpd.service
 	
@@ -1374,18 +1380,18 @@ build_ftp() {
 build_letsencrypt() {
 
 	echo "Start installation letsencrypt.."
-	if [ -d "${LEO_DIR}/certbot" ]; then 
-		rm -rf "${LEO_DIR}/certbot"
+	if [ -d "${LEO_APP_DIR}/certbot" ]; then 
+		rm -rf "${LEO_APP_DIR}/certbot"
 	fi
 
 	echo "Start installation git command"
 	yum install git -y
 
 	echo "Cloning certbot repo"
-	cd ${LEO_DIR}
+	cd ${LEO_APP_DIR}
 	git clone https://github.com/certbot/certbot.git
 
-	cd ${LEO_DIR}/certbot
+	cd ${LEO_APP_DIR}/certbot
 	./certbot-auto --install-only --non-interactive
 
 	echo "Install letsencrypt completed"

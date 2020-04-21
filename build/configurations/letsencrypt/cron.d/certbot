@@ -1,0 +1,3 @@
+SHELL=/bin/bash
+PATH=/sbin:/bin:/usr/sbin:/usr/bin
+01 01 * * * root /leoparx/applications/certbot/certbot-auto renew --non-interactive && systemctl reload {webserver_type}

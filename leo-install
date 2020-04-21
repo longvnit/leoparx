@@ -39,6 +39,7 @@ MYSQL_TYPE=mysql
 MYSQL_VERSION=5.6
 PMA_ENABLE=yes
 FTP_ENABLE=yes
+LETSENCRYPT_ENABLE=yes
 
 if [ -s /etc/os-release ]; then
 	OS_CENTOS_VER=`grep -m1 '^VERSION_ID=' /etc/os-release | cut -d. -f1 | cut -d'"' -f2`
@@ -461,6 +462,17 @@ build_config_options() {
 			option=yes
 		fi 
 		set_config_option ftp_enable "${option}" "${OPTIONS_SET}"
+	done
+
+	VALID_OPTION="no"
+	OPTIONS_SET="yes no"
+	until [ "${VALID_OPTION}" = "yes" ]; do
+		echo -n "Do you want to install LetsEncrypt (${OPTIONS_SET// //}, default: yes):"
+		read option
+		if [ -z "${option}" ]; then
+			option=yes
+		fi 
+		set_config_option letsencrypt_enable "${option}" "${OPTIONS_SET}"
 	done
 
 	get_config_options
@@ -1394,12 +1406,16 @@ build_all() {
 
 	build_php
 
-	if [ ${PMA_ENABLE} == "yes" ]; then 
+	if [ "${PMA_ENABLE}" == "yes" ]; then 
 		build_pma
 	fi 
 
-	if [ ${FTP_ENABLE} == "yes" ]; then
-		build_pma
+	if [ "${FTP_ENABLE}" == "yes" ]; then
+		build_ftp
+	fi
+
+	if [ "${LETSENCRYPT_ENABLE}" == "yes" ]; then
+		build_letsencrypt
 	fi
 }
 

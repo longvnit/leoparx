@@ -1,0 +1,7 @@
+/var/log/pureftpd.log {
+        missingok
+        notifempty
+        #postrotate
+        #       /usr/bin/kill -HUP `cat /var/run/pure-ftpd.pid 2>/dev/null` 2>/dev/null || true
+        #endscript
+}

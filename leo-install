@@ -524,14 +524,14 @@ create_ssl() {
 	fi 
 
 	if [ ! -e "${SSL_DIR}/server.key" ] || [ ! -e "${SSL_DIR}/server.crt" ]; then
-		openssl req -x509 -newkey rsa:2048 -keyout "${SSL_DIR}/server.key" -out "${SSL_DIR}/server.crt" -days 9999 -nodes -config ${BUILD_DIR}/configure/ssl/cert.txt
+		openssl req -x509 -newkey rsa:2048 -keyout "${SSL_DIR}/server.key" -out "${SSL_DIR}/server.crt" -days 9999 -nodes -config ${BUILD_CONF_DIR}/ssl/cert.txt
 
 		chmod 600 "${SSL_DIR}/server.key"
 		chmod 600 "${SSL_DIR}/server.crt"
 
 		# Build crt with Comodo CA
 		cat "${SSL_DIR}/server.crt" > "${SSL_DIR}/server.combined"
-		cat "${BUILD_DIR}/configure/ssl/comodo.ca" >> "${SSL_DIR}/server.combined"
+		cat "${BUILD_CONF_DIR}/ssl/comodo.ca" >> "${SSL_DIR}/server.combined"
 		chmod 600 "${SSL_DIR}/server.combined"
 	fi
 
@@ -1097,7 +1097,7 @@ build_php_opt() {
 	local php_suffix_version=`echo ${php_version//./}`
 
 	# Add app user
-	useradd -s /bin/false --no-create-home www
+	useradd -s /bin/false --no-create-home webapps
 
 	# Install PHP
 	cd ${BUILD_SOURCE_DIR}
@@ -1120,7 +1120,7 @@ build_php_opt() {
 	cd ${file_name}
 
 	echo "Start configure ${file_name}"
-	local php_configure_file="${BUILD_CONF_DIR}/php${php_suffix_version}/configure.php-${php_suffix_version}"
+	local php_configure_file="${BUILD_CONF_DIR}/php${php_suffix_version}/configure.php${php_suffix_version}"
 	sh ${php_configure_file}
 
 	C_INCLUDE_PATH=/usr/kerberos/include make -j ${CPU_CORES}
@@ -1139,12 +1139,17 @@ build_php_opt() {
 	mkdir -p ${LEO_APP_DIR}/php${php_suffix_version}/etc/php-fpm.d
 
 	# Copy file configs
-	local php_config_files="php-fpm.conf"
+	local php_config_files="php-fpm.conf php.ini"
 
 	for i in ${php_config_files}
 	do
 		\cp -rf "${BUILD_CONF_DIR}/php${php_suffix_version}/etc/${i}" ${LEO_APP_DIR}/php${php_suffix_version}/etc/
 	done
+
+	if [ ! -e "/etc/logrotate.d/php-fpm" ]; then 
+		cp ${BUILD_CONF_DIR}/php${php_suffix_version}/logrotate.d/php-fpm /etc/logrotate.d/php-fpm
+		chmod +x /etc/logrotate.d/php-fpm
+	fi
 
 	# Enable nginx service
 	\cp -rf "${BUILD_DIR}/configure/php/php-fpm${php_suffix_version}.service" /lib/systemd/system/php-fpm${php_suffix_version}.service
@@ -1221,7 +1226,7 @@ build_nginx() {
 	cd ${file_name}
 
 	echo "Start configure nginx"
-	local nginx_configure_file="${BUILD_DIR}/configure/nginx/configure.nginx"
+	local nginx_configure_file="${BUILD_CONF_DIR}/nginx/configure.nginx"
 	sh ${nginx_configure_file}
 
 	if [ $? -ne 0 ]; then
@@ -1258,6 +1263,12 @@ build_nginx() {
 	sed -i "s/{{php_opt_1}}/${php_version}/g" ${LEO_APP_DIR}/nginx/conf/nginx-vhosts.conf
 	sed -i "s/{{php_opt_1}}/${php_version}/g" ${LEO_APP_DIR}/nginx/conf/webapps_settings.conf
 	
+	# Enable logrotate
+	cp ${BUILD_CONF_DIR}/nginx/logrotate.d/nginx /etc/logrotate.d/nginx
+	chmod +x /etc/logrotate.d/nginx
+
+	# Create SSL
+	create_ssl()
 
 	# Enable nginx service
 	\cp -rf "${BUILD_CONF_DIR}/nginx/nginx.service" /lib/systemd/system/nginx.service
@@ -1347,24 +1358,25 @@ build_ftp() {
 	# Pure-FTPd configuring..
 	echo "Pure-FTPd configuring..."
 
-	if [ ! -e /etc/proftpd.passwd ]; then
-		touch /etc/proftpd.passwd
-		chmod 640 /etc/proftpd.passwd
+	if [ ! -e "${LEO_APP_DIR}/pureftpd/etc/proftpd.passwd" ]; then
+		touch ${LEO_APP_DIR}/pureftpd/etc/proftpd.passwd
+		chmod 640 ${LEO_APP_DIR}/pureftpd/etc/proftpd.passwd
 	fi
 
-	pure-pw mkdb /etc/pureftpd.pdb -f /etc/proftpd.passwd
+	pure-pw mkdb ${LEO_APP_DIR}/pureftpd/etc/pureftpd.pdb -f ${LEO_APP_DIR}/pureftpd/etc/proftpd.passwd
 
 	# Generate CA for pure-ftpd
-	if [ ! -e "${LEO_DIR}/ssl/pure-ftpd.pem" ]; then 
+	if [ ! -e "${LEO_APP_DIR}/pureftpd/etc/pure-ftpd.pem" ]; then 
 		create_ssl
 
-		cat "${LEO_DIR}/ssl/server.key" > "${LEO_DIR}/ssl/pure-ftpd.pem"
-		cat "${LEO_DIR}/ssl/server.combined" >> "${LEO_DIR}/ssl/pure-ftpd.pem"
-		chmod 600 "${LEO_DIR}/ssl/pure-ftpd.pem"
+		cat "${LEO_DIR}/ssl/server.key" > "${LEO_APP_DIR}/pureftpd/etc/pure-ftpd.pem"
+		cat "${LEO_DIR}/ssl/server.combined" >> "${LEO_APP_DIR}/pureftpd/etc/pure-ftpd.pem"
+		chmod 600 "${LEO_APP_DIR}/pureftpd/etc/pure-ftpd.pem"
 	fi
 
-	if [ ! -e /etc/logrotate.d/pure-ftpd ] && [ ${OS} != "FreeBSD" ]; then
-		wget ${WGET_CONNECT_OPTIONS} ${WEBPATH}/pure-ftpd.logrotate -O /etc/logrotate.d/pure-ftpd
+	if [ ! -e /etc/logrotate.d/pure-ftpd ]; then
+		cp ${LEO_CONF_DIR}/pureftpd/logrotate.d/pure-ftpd /etc/logrotate.d/pure-ftpd
+		chmod +x /etc/logrotate.d/pure-ftpd
 	fi
 	
 

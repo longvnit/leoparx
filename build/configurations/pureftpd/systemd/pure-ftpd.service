@@ -1,0 +1,13 @@
+# pure-ftpd binary startup for Leoparx servers
+# To reload systemd daemon after changes to this file:
+# systemctl --system daemon-reload
+[Unit]
+Description=PureFTPd server
+After=syslog.target network.target pure-certd.service
+
+[Service]
+Type=forking
+ExecStart=/leoparx/applications/pureftpd/sbin/pure-ftpd /leoparx/applications/pureftpd/etc/pure-ftpd.conf
+
+[Install]
+WantedBy=multi-user.target

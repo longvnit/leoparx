@@ -6,16 +6,16 @@ Easy to manage server
 |--- /leoparx
      |
      |--- /build
-          |
-          |--- /sources
-          |--- /configurations
-          |    |--- /php73
-          |         |--- /configure.php73
-          |         |--- /etc
-          |         |    |--- /php-fpm.conf
-          |         |--- /logrotate.d
-          |         |--- /systemd
-          |--- /applications
-          |    |--- /nginx
-          |--- /data
+     |    |
+     |    |--- /sources
+     |    |--- /configurations
+     |         |--- /php73
+     |              |--- /configure.php73
+     |              |--- /etc
+     |              |    |--- /php-fpm.conf
+     |              |--- /logrotate.d
+     |              |--- /systemd
+     |--- /applications
+     |    |--- /nginx
+     |--- /data
 ```

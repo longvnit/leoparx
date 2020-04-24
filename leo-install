@@ -176,7 +176,7 @@ get_source_file() {
 }
 
 init_version_packages() {
-	local version_packages=${BUILD_CONF_DIR}/${VERSIONS_PACKAGES}
+	local version_packages=${BUILD_DIR}/${VERSIONS_PACKAGES}
 	if [ ! -s ${version_packages} ]; then
 		get_file ${VERSIONS_PACKAGES}
 
@@ -204,10 +204,10 @@ get_package_version() {
 	if [ -z ${1} ]; then
 		echo ""
 	else
-		local file_name=${BUILD_CONF_DIR}/${VERSIONS_PACKAGES}
+		local file_name=${BUILD_DIR}/${PACKAGES}
 		local build_packages_version=`awk -F ":" '{gsub(/\./,"_",$1);gsub(/-/,"_",$1);print "local version_package_"$1"="$2}' ${file_name}`
 		eval ${build_packages_version}
-		local package_name="version_package_${1}"
+		local package_name="version_package_${1//-/_}"
 		echo ${!package_name}
 	fi
 }
@@ -219,7 +219,7 @@ get_config_option() {
 		return
 	fi 
 
-	local config_file=${BUILD_CONF_DIR}/${BUILD_CONF_FILE}
+	local config_file=${BUILD_DIR}/${BUILD_CONF_FILE}
 	#cat ${conf_file}
 	local build_configs=`awk -F "=" '{gsub(/\./,"_",$1);gsub(/-/,"_",$1);print "local opt_"$1"="$2}' ${config_file}`
 	eval ${build_configs}
@@ -228,7 +228,7 @@ get_config_option() {
 }
 
 get_valid_package_version() {
-	local valid_versions_packages_file="${BUILD_CONF_DIR}/${VERSIONS_PACKAGES}"
+	local valid_versions_packages_file="${BUILD_DIR}/${VERSIONS_PACKAGES}"
 	if [ -z "${1}" ]; then
 		echo ""
         return
@@ -250,7 +250,7 @@ set_config_option() {
 	local opt_name=${1}
 	local opt_value=${2}
 	local valid_options=${3}
-	local config_options_file=${BUILD_CONF_DIR}/${BUILD_CONF_FILE}
+	local config_options_file=${BUILD_DIR}/${BUILD_CONF_FILE}
 
 	# Check option name 
 	local opt_line_number=`awk '{ print $0, NR }' ${config_options_file}  | grep -m1 ${opt_name} | awk '{print $2}'`
@@ -290,7 +290,8 @@ get_config_options() {
 	MYSQL_TYPE=`get_config_option mysql_type`
 	MYSQL_VERSION=`get_config_option mysql_version`
 	PMA_ENABLE=`get_config_option pma_enable`
-	FTP_ENABLE=`get_config_option pma_enablepma_enable`
+	FTP_ENABLE=`get_config_option ftp_enable`
+	LETSENCRYPT_ENABLE=`get_config_option letsencrypt_enable`
 }
 
 set_config_options() {
@@ -1163,7 +1164,7 @@ build_php_opt() {
 	if [ "${PHP1_VERSION}" == "${1}" ]; then
 		rm -rf /usr/bin/php 
 		ln -s ${LEO_APP_DIR}/php${php_suffix_version}/bin/php${php_suffix_version} /usr/bin/php
-	}
+	fi
 }
 
 build_php() {
@@ -1268,7 +1269,7 @@ build_nginx() {
 	chmod +x /etc/logrotate.d/nginx
 
 	# Create SSL
-	create_ssl()
+	create_ssl
 
 	# Enable nginx service
 	\cp -rf "${BUILD_CONF_DIR}/nginx/nginx.service" /lib/systemd/system/nginx.service
@@ -1335,7 +1336,7 @@ build_ftp() {
 	cd ${file_name}
 
 	echo "Start configure nginx"
-	local configure_file="${BUILD_DIR}/configure/pure-ftpd/configure.pure-ftpd"
+	local configure_file="${BUILD_CONF_DIR}/pureftpd/configure.pureftpd"
 	sh ${configure_file}
 
 	if [ $? -ne 0 ]; then
@@ -1358,13 +1359,16 @@ build_ftp() {
 	# Pure-FTPd configuring..
 	echo "Pure-FTPd configuring..."
 
-	if [ ! -e "${LEO_APP_DIR}/pureftpd/etc/proftpd.passwd" ]; then
-		touch ${LEO_APP_DIR}/pureftpd/etc/proftpd.passwd
-		chmod 640 ${LEO_APP_DIR}/pureftpd/etc/proftpd.passwd
+	\cp -rf ${BUILD_CONF_DIR}/pureftpd/etc/pure-ftpd.conf ${LEO_APP_DIR}/pureftpd/etc/pure-ftpd.conf
+
+	if [ ! -e "${LEO_APP_DIR}/pureftpd/etc/pure-ftpd.passwd" ]; then
+		touch ${LEO_APP_DIR}/pureftpd/etc/pure-ftpd.passwd
+		chmod 640 ${LEO_APP_DIR}/pureftpd/etc/pure-ftpd.passwd
 	fi
 
-	pure-pw mkdb ${LEO_APP_DIR}/pureftpd/etc/pureftpd.pdb -f ${LEO_APP_DIR}/pureftpd/etc/proftpd.passwd
-
+	if [ ! -e "${LEO_APP_DIR}/pureftpd/etc/pureftpd.pdb" ]; then
+		${LEO_APP_DIR}/pureftpd/bin/pure-pw mkdb ${LEO_APP_DIR}/pureftpd/etc/pureftpd.pdb -f ${LEO_APP_DIR}/pureftpd/etc/pure-ftpd.passwd
+	fi
 	# Generate CA for pure-ftpd
 	if [ ! -e "${LEO_APP_DIR}/pureftpd/etc/pure-ftpd.pem" ]; then 
 		create_ssl
@@ -1375,13 +1379,13 @@ build_ftp() {
 	fi
 
 	if [ ! -e /etc/logrotate.d/pure-ftpd ]; then
-		cp ${LEO_CONF_DIR}/pureftpd/logrotate.d/pure-ftpd /etc/logrotate.d/pure-ftpd
+		cp ${BUILD_CONF_DIR}/pureftpd/logrotate.d/pure-ftpd /etc/logrotate.d/pure-ftpd
 		chmod +x /etc/logrotate.d/pure-ftpd
 	fi
 	
 
 	# Enable nginx service
-	\cp -rf "${BUILD_CONF_DIR}/pure-ftpd/pure-ftpd.service" /lib/systemd/system/pure-ftpd.service
+	\cp -rf "${BUILD_CONF_DIR}/pureftpd/systemd/pure-ftpd.service" /lib/systemd/system/pure-ftpd.service
 	chmod 644 /lib/systemd/system/pure-ftpd.service
 	systemctl enable pure-ftpd.service
 	

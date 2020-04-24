@@ -9,3 +9,4 @@ mysql_type=mysql
 mysql_version=5.6
 pma_enable=yes
 ftp_enable=yes
+letsencrypt_enable=yes

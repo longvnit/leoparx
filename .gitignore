@@ -15,3 +15,6 @@ ssl/
 
 # Exclude data
 data/
+
+# Exclude pid
+build/leo.pid

@@ -6,3 +6,12 @@ build/sources/
 
 # Exclude NOTE.md
 NOTE.md
+
+# Exclude Applications 
+applications/
+
+# Exclude ssl
+ssl/
+
+# Exclude data
+data/

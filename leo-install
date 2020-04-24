@@ -1137,7 +1137,7 @@ build_php_opt() {
 	echo "Build ${file_name} completed"
 
 	# Make php-fpm.d folder 
-	mkdir -p ${LEO_APP_DIR}/php${php_suffix_version}/etc/php-fpm.d
+	mkdir -p ${LEO_APP_DIR}/php${php_suffix_version}/etc/php.conf.d
 
 	# Copy file configs
 	local php_config_files="php-fpm.conf php.ini"

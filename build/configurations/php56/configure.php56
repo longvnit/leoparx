@@ -1,32 +1,31 @@
 #!/bin/sh
-./configure --enable-embed \
-	--prefix=/leoparx/applications/php73 \
-	--program-suffix=73 \
+./configure \
+	--prefix=/leoparx/applications/php56 \
+	--program-suffix=56 \
 	--enable-fpm \
-	--with-fpm-systemd \
-	--with-config-file-scan-dir=/leoparx/applications/php73/etc/php.conf.d \
+	--with-litespeed \
+	--with-config-file-scan-dir=/leoparx/applications/php56/etc/php.conf.d \
 	--with-curl \
 	--with-gd \
+	--enable-gd-native-ttf \
 	--with-gettext \
 	--with-jpeg-dir=/usr/local/lib \
 	--with-freetype-dir=/usr/local/lib \
 	--with-libxml-dir=/usr/local/lib \
 	--with-kerberos \
 	--with-openssl \
+	--with-mcrypt \
 	--with-mhash \
+	--with-mysql=mysqlnd \
 	--with-mysql-sock=/var/lib/mysql/mysql.sock \
 	--with-mysqli=mysqlnd \
 	--with-pcre-regex=/usr/local \
 	--with-pdo-mysql=mysqlnd \
 	--with-pear \
 	--with-png-dir=/usr/local/lib \
-	--with-sodium=/usr/local \
-	--with-webp-dir=/usr/local/lib \
 	--with-xsl \
 	--with-zlib \
-	--with-bz2 \
 	--enable-zip \
-	--without-libzip \
 	--with-iconv=/usr/local \
 	--enable-bcmath \
 	--enable-calendar \

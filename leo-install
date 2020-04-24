@@ -1259,24 +1259,25 @@ build_nginx() {
 	done
 
 	# Set PHP version for Nginx Apps
-	local php_version=`echo "${PHP1_VERSION}" | tr '[:upper:]' '[:lower:]'`
+	local php_version=`echo "php${PHP1_VERSION//./}" | tr '[:upper:]' '[:lower:]'`
 	sed -i "s/{{php_opt_1}}/${php_version}/g" ${LEO_APP_DIR}/nginx/conf/nginx-userdir.conf
 	sed -i "s/{{php_opt_1}}/${php_version}/g" ${LEO_APP_DIR}/nginx/conf/nginx-vhosts.conf
 	sed -i "s/{{php_opt_1}}/${php_version}/g" ${LEO_APP_DIR}/nginx/conf/webapps_settings.conf
 	
 	# Enable logrotate
-	cp ${BUILD_CONF_DIR}/nginx/logrotate.d/nginx /etc/logrotate.d/nginx
+	\cp -rf ${BUILD_CONF_DIR}/nginx/logrotate.d/nginx /etc/logrotate.d/nginx
 	chmod +x /etc/logrotate.d/nginx
 
 	# Create SSL
 	create_ssl
 
 	# Enable nginx service
-	\cp -rf "${BUILD_CONF_DIR}/nginx/nginx.service" /lib/systemd/system/nginx.service
+	\cp -rf "${BUILD_CONF_DIR}/nginx/systemd/nginx.service" /lib/systemd/system/nginx.service
 	chmod 644 /lib/systemd/system/nginx.service
 	systemctl enable nginx.service
 	
 	echo "Restarting nginx..."
+	systemctl daemon-reload
 	systemctl restart nginx.service
 }
 

@@ -944,8 +944,8 @@ build_iconv() {
 
 build_icu() {
 	cd ${BUILD_SOURCE_DIR}
-	local file_ext="tar.gz"
-	local file_name="icu4c-`get_package_version icu4c`"
+	local file_ext="tgz"
+	local file_name="icu4c-`get_package_version icu4c`-src"
 
 	if [ ! -s "${file_name}.${file_ext}" ]; then  
 		echo "Start build ${file_name}"
@@ -1122,7 +1122,12 @@ build_php_opt() {
 
 	echo "Start configure ${file_name}"
 	local php_configure_file="${BUILD_CONF_DIR}/php${php_suffix_version}/configure.php${php_suffix_version}"
-	sh ${php_configure_file}
+	chmod +x ${php_configure_file}
+	if [ "${php_version}" == "5.6" ]; then 
+		CXXFLAGS="-std=c++11 -DU_USING_ICU_NAMESPACE=1" ${php_configure_file}
+	else 
+		${php_configure_file}
+	fi
 
 	C_INCLUDE_PATH=/usr/kerberos/include make -j ${CPU_CORES}
 
@@ -1180,7 +1185,7 @@ build_php() {
 		#build_mhash
 		#build_freetype2
 		#build_iconv
-		#build_icu
+		build_icu
 		#build_libxml2
 		#build_libxslt
 		#build_libsodium

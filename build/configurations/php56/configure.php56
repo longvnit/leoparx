@@ -3,7 +3,6 @@
 	--prefix=/leoparx/applications/php56 \
 	--program-suffix=56 \
 	--enable-fpm \
-	--with-litespeed \
 	--with-config-file-scan-dir=/leoparx/applications/php56/etc/php.conf.d \
 	--with-curl \
 	--with-gd \

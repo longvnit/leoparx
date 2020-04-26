@@ -1091,6 +1091,94 @@ build_libsodium() {
 	echo "Build libsodium completed"
 }
 
+random_passwd() {
+	RPC=`awk -v min=10 -v max=17 'BEGIN{srand(); print int(min+rand()*(max-min+1))}'`
+	tr -cd 'a-zA-Z0-9' < /dev/urandom 2>/dev/null | head -c${RPC}
+}
+
+create_mysql_admin_account() {
+	local mysql_password_file="${BUILD_DIR}/.mysql.passwd"
+	touch ${mysql_password_file}
+	chmod 600 ${mysql_password_file}
+	# Add user to mysql.passwd
+	MYSQL_PASSWORD=`random_passwd`
+	MYSQL_USER="admin"
+	echo "[client]" > ${mysql_password_file}
+	echo "user=${MYSQL_USER}" >> ${mysql_password_file}
+	echo "password=${MYSQL_PASSWORD}" >> ${mysql_password_file}
+}
+
+read_mysql_admin_account() {
+	local mysql_password_file="${BUILD_DIR}/.mysql.passwd"
+
+	if [ ! -e "${mysql_password_file}" ]; then 
+		create_mysql_admin_account
+	fi
+
+	local file_content=`awk -F "=" '{gsub(/\./,"_",$1);gsub(/-/,"_",$1);print "local mysql_"$1"=\""$2"\""}' ${mysql_password_file}`
+	eval ${file_content}
+	
+	MYSQL_USER=`echo ${mysql_user}`
+	MYSQL_PASSWORD=`echo ${mysql_password}`
+}
+
+
+
+set_mysql_admin_account() {
+	read_mysql_admin_account
+
+	if [ "${MYSQL_USER}" == "" ]; then 
+		create_mysql_admin_account
+		read_mysql_admin_account
+	fi 
+
+	if [ ! -e "/usr/bin/mysql" ]; then 
+		do_exit 1 "MySQL Server service not installed"
+	fi
+
+
+}
+
+build_mysql() {
+	if [ -e "/usr/bin/mysql" ]; then 
+		do_exit 1 "You can not install MySQL Server because MySQL is already installed"
+	fi 
+
+	if [ ${MYSQL_ENABLE} != "yes" ]; then 
+		do_exit 1 "You can not install MySQL Server because you do not have it set in configuration file, use ./leo-install set_option"
+	fi
+
+	if [ ${MYSQL_TYPE} == "mysql" ]; then
+		# Install MySQL
+		echo "MySQL Server Installing..."
+		local mysql_files=""
+		for file in ${mysql_files}
+		do
+			if [ ! -e "${BUILD_SOURCE_DIR}/${file}" ]; then 
+				echo "Downloading ..."
+				get_source_file "${file}"
+			fi
+		done
+
+		rpm -ivh ${mysql_files}
+
+	else 
+		# Install MariaDB
+		echo "MariaDB Server Installing..."
+		local mariadb_files=""
+
+		for file in ${mariadb_files}
+		do
+			if [ ! -e "${BUILD_SOURCE_DIR}/${file}" ]; then 
+				echo "Downloading ..."
+				get_source_file "${file}"
+			fi
+		done
+
+		rpm -ivh ${mariadb_files}
+	if 
+}
+
 build_php_opt() {
 	get_config_options
 

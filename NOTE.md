@@ -41,3 +41,5 @@ USE_NEW_SET_PASSWORD=1
 	
 
     mysql_install_db --user=mysql --datadir=/var/lib/mysql --auth-root-authentication-method=normal
+
+    https://mariadb.com/kb/en/authentication-from-mariadb-104/

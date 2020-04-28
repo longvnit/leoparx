@@ -1096,7 +1096,7 @@ random_passwd() {
 	tr -cd 'a-zA-Z0-9' < /dev/urandom 2>/dev/null | head -c${RPC}
 }
 
-create_mysql_admin_account() {
+create_mysql_root_account() {
 	local mysql_password_file="${BUILD_DIR}/.mysql.passwd"
 	touch ${mysql_password_file}
 	chmod 600 ${mysql_password_file}
@@ -1108,11 +1108,11 @@ create_mysql_admin_account() {
 	echo "password=${MYSQL_PASSWORD}" >> ${mysql_password_file}
 }
 
-read_mysql_admin_account() {
+read_mysql_root_account() {
 	local mysql_password_file="${BUILD_DIR}/.mysql.passwd"
 
 	if [ ! -e "${mysql_password_file}" ]; then 
-		create_mysql_admin_account
+		create_mysql_root_account
 	fi
 
 	local file_content=`awk -F "=" '{gsub(/\./,"_",$1);gsub(/-/,"_",$1);print "local mysql_"$1"=\""$2"\""}' ${mysql_password_file}`
@@ -1124,12 +1124,12 @@ read_mysql_admin_account() {
 
 
 
-set_mysql_admin_account() {
-	read_mysql_admin_account
+set_mysql_root_account() {
+	read_mysql_root_account
 
 	if [ "${MYSQL_USER}" == "" ]; then 
-		create_mysql_admin_account
-		read_mysql_admin_account
+		create_mysql_root_account
+		read_mysql_root_account
 	fi 
 
 	if [ ! -e "/usr/bin/mysql" ]; then 
@@ -1197,6 +1197,16 @@ backup_mysql_database() {
 		chmod 640 ${MYSQL_BACKUP_DIR}
 	fi
 
+	local mysqlcheck_args="--fix-db-names --fix-table-names -A"
+
+	if [ "${MYSQL_TYPE}" == "mysql" ]; then 
+		if [ "${MYSQL_VERSION}" == "5.7" ] || [ "${MYSQL_VERSION}" == "8.0" ]; then
+			mysqlcheck_args="-A"
+		fi
+	fi
+
+	mysqlcheck --defaults-extra-file=${BUILD_DIR}/.mysql.passwd ${mysqlcheck_args}
+
 	for db in `get_all_databases`
 	do
 		printf "Dumping database ${db}..\n"
@@ -1208,8 +1218,9 @@ backup_mysql_database() {
 }
 
 build_mysql() {
-	if [ -e "/usr/bin/mysql" ]; then 
-		do_exit 1 "You can not install MySQL Server because MySQL is already installed"
+	if [ -e "/usr/bin/mysql" ] && [ -d "/var/lib/mysql" ] ; then 
+		echo "You can not install MySQL Server because MySQL is already installed"
+		return
 	fi 
 
 	if [ ${MYSQL_ENABLE} != "yes" ]; then 
@@ -1218,12 +1229,6 @@ build_mysql() {
 
 	if ! grep -m1 -q 'mysql' /etc/group; then
 		addUserGroup mysql mysql 
-	fi
-
-	if [ ! -d /var/run/mysqld ]; then
-		mkdir -p /var/run/mysqld
-		chown -R mysql:mysql /var/run/mysqld
-		chmod 700 /var/run/mysqld
 	fi
 
 	if [ ${MYSQL_TYPE} == "mysql" ]; then
@@ -1258,6 +1263,130 @@ build_mysql() {
 
 		rpm -ivh ${mariadb_files}
 	if 
+
+	set_mysql_root_account
+}
+
+# change_mysql <old_type> <new_type> <old_version> <new_version>
+change_mysql() {
+	if [ -e "/usr/bin/mysql" ];
+		do_exit 1 "MySQL is not already installed. Please install it"
+	then 
+
+	local old_type=${1}
+	local new_type=${2}
+	local old_version=${3}
+	local new_version=${4}
+	local is_change_mysql_type=false
+	local is_upgrade=false
+
+	# MySQL 5.6 = MariaDB 10.1
+	# MySQL 5.7 = MariaDB 10.2, 10.3 10.4
+	# MySQL 8.0 = NaN
+
+	if [ $old_type == $new_type ]; then 
+		if [ $old_type == "mysql" ]; then 
+			if [ ${old_version} == "5.6" ]; then 
+				if [ ${new_version} == "5.7" ]; then 
+					is_upgrade=true
+				else 
+					do_exit 1 "Can not upgrade MySQL from ${old_version} to ${new_version}"
+				fi
+			fi
+
+			if [ ${old_version} == "5.7" ]; then 
+				if [ ${new_version} == "5.6" ]; then 
+					do_exit 1 "Can not downgrade MySQL from ${old_version} to ${new_version}"
+				elif [ ${new_version} == "8.0" ]; then
+					is_upgrade=true 
+				fi
+			fi
+
+		else 
+			if [ ${old_version} == "10.1" ]; then 
+				if [ ${new_version} == "10.3" ] || [ ${new_version} == "10.4" ]; then
+					do_exit 1 "Can not upgrade MariaDB from ${old_version} to ${new_version}"
+				else
+					is_upgrade=true
+				fi
+			fi
+			
+			if [ ${old_version} == "10.2" ]; then
+				if [ ${new_version} == "10.1" ]; then
+					do_exit 1 "Can not downgrade MariaDB from ${old_version} to ${new_version}"
+				elif [ ${new_version} == "10.3" ]; then
+					is_upgrade=true
+				else
+					do_exit 1 "Can not upgrade MariaDB from ${old_version} to ${new_version}"
+				fi
+			fi
+
+			if [ ${old_version} == "10.3" ]; then
+				if [ ${new_version} == "10.2" ]; then
+					is_upgrade=false
+				elif [ ${new_version} == "10.4" ]; then
+					is_upgrade=true
+				else
+					do_exit 1 "Can not upgrade MariaDB from ${old_version} to ${new_version}"
+				fi
+			if
+
+			if [ ${old_version} == "10.4" ]; then 
+				do_exit 1 "Can not downgrade/upgrade MariaDB from ${old_version} to ${new_version}"
+			fi
+		fi 
+	else 
+		if [ ${old_type} == "mysql" ]; then 
+			if [ ${old_version} == "5.6" ]; then 
+				if [ ${new_version} == "10.1" ]; then 
+					is_upgrade=true
+				else 
+					do_exit 1 "Can not change MySQL to MariaDB from version ${old_version} to ${new_version}"
+				if
+			fi
+
+			if [ ${old_version} == "5.7" ]; then 
+				if [ ${new_version} == "10.2" ] || [ ${new_version} == "10.3" ] || [ ${new_version} == "10.4" ]; then 
+					is_upgrade=true
+				else 
+					do_exit 1 "Can not change MySQL to MariaDB from version ${old_version} to ${new_version}"
+				if
+			fi
+
+			if [ ${old_version} == "8.0" ]; then 
+				do_exit 1 "Can not change MySQL to MariaDB from version ${old_version} to ${new_version}"
+			fi
+		else 
+			if [ ${old_version} == "10.1" ]; then 
+				if [ ${new_version} == "5.6" ]; then 
+					is_upgrade=true
+				fi
+			fi
+
+			if [ ${old_version} == "10.2" ] || [ ${old_version} == "10.3" ] || [ $old_version} == "10.4" ]; then 
+				if [ ${new_version} == "5.7" ]; then 
+					is_upgrade=true
+				else 
+					do_exit 1 "Can not change MariaDB to MySQL from version ${old_version} to ${new_version}"
+				fi
+			fi
+		fi
+	fi
+
+	# Upgrading 
+
+	# Backup database first
+	backup_mysql_database
+
+	# Remove old rpm packages
+
+	# Install new rpm packages
+
+	# Repairing new database server
+	mysql_upgrade --defaults-extra-file ${BUILD_DIR}/.mysql.passwd
+	mysql_fix_privilege_tables --defaults-extra-file=${BUILD_DIR}/.mysql.passwd
+
+	# If server is not run then sorry for your life is bad, let's make everything manual or contact me @iamlongnguyen
 }
 
 build_php_opt() {

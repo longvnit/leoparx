@@ -39,3 +39,5 @@ USE_NEW_SET_PASSWORD=1
 		mysql --defaults-extra-file=${DA_MY_CNF} -e "SET PASSWORD FOR '${SQL_USER}'@'${SQL_HOST}' = PASSWORD('${SQL_PASS}');" --host=${MYSQLHOST} 2>&1
 	fi
 	
+
+    mysql_install_db --user=mysql --datadir=/var/lib/mysql --auth-root-authentication-method=normal

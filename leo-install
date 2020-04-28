@@ -1136,7 +1136,75 @@ set_mysql_admin_account() {
 		do_exit 1 "MySQL Server service not installed"
 	fi
 
+	if [ ! -d "/var/lib/mysql" ]; then 
 
+		mkdir -p "/var/lib/mysql"
+		chown mysql:mysql -R "/var/lib/mysql"
+		chmod 711 "/var/lib/mysql"
+
+		if [ "${MYSQL_TYPE}" == "mysql" ]; then
+
+			if [ ${MYSQL_VERSION} != "5.6" ]; then
+				ROOT_AUTHENTICATION_METHOD="--auth-root-authentication-method=normal"
+			fi
+
+			mysql_install_db --user=mysql --basedir=/usr --datadir=/var/lib/mysql ${ROOT_AUTHENTICATION_METHOD}
+			
+			systemctl start mysqld 
+
+			mysqladmin --user=${MYSQL_USER} password "${MYSQL_PASSWORD}" 2>&1 >/dev/null
+
+			if [ "$?" != "0" ]; then
+				echo "Error setting root pass using mysqladmin."
+			fi
+
+			mysql --user=root --password='' -e "quit" >/dev/null 2>&1
+			if [ "$?" = "0" ]; then
+				echo "MySQL root password seems to be unset, set MySQL password by query..."
+				if [ ${MYSQL_VERSION} == "5.6" ]; then 
+					mysql --user=${MYSQL_USER} --password='' -e "ALTER USER 'root'@'localhost' IDENTIFIED BY '${MYSQL_PASSWORD}';" --host=localhost >/dev/null
+				else 
+					mysql --user=${MYSQL_USER} --password='' -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY '${MYSQL_PASSWORD}';" --host=localhost >/dev/null
+				fi
+			fi
+
+			mysql --user=${MYSQL_USER} --password="${MYSQL_PASSWORD}" -e "quit" >/dev/null 2>&1
+			if [ "$?" != "0" ]; then
+				do_exit 1 "Unable to login using root MySQL credentials. Exit..."
+			fi
+			
+		elif [ "${MYSQL_TYPE}" == "mariadb" ]; then 
+			mysql_install_db --user=mysql --basedir=/usr --datadir=/var/lib/mysql --force
+		fi
+	fi
+
+	mysql --user=root --password="${MYSQL_PASSWORD}" -e "quit" >/dev/null 2>&1
+	if [ "$?" != "0" ]; then
+		do_exit 1 "Unable to login using root MySQL credentials. Aborting installation..."
+	fi
+}
+
+get_all_databases() {
+	CMD="echo 'SHOW DATABASES' | mysql --defaults-extra-file=${BUILD_DIR}/.mysql.passwd"
+	eval $CMD | grep -v '^Database$' | grep -v '^information_schema$' | grep -v '^performance_schema$'
+}
+
+backup_mysql_database() {
+	MYSQL_BACKUP_DIR=""
+	
+	if [ ! -d "${MYSQL_BACKUP_DIR}" ]; then 
+		mkdir -p ${MYSQL_BACKUP_DIR}
+		chmod 640 ${MYSQL_BACKUP_DIR}
+	fi
+
+	for db in `get_all_databases`
+	do
+		printf "Dumping database ${db}..\n"
+		printf "Dumping database ${db}\n" >> ${BUILD_DIR}/mysql_backup.log
+		mysqldump --defaults-extra-file=${BUILD_DIR}/.mysql.passwd --add-drop-database --databases --routines -l ${db} | gzip > ${MYSQL_BACKUP_DIR}/${db}.sql.gz
+
+		echo 640 ${MYSQL_BACKUP_DIR}/${db}.sql.gz
+	done
 }
 
 build_mysql() {
@@ -1148,10 +1216,21 @@ build_mysql() {
 		do_exit 1 "You can not install MySQL Server because you do not have it set in configuration file, use ./leo-install set_option"
 	fi
 
+	if ! grep -m1 -q 'mysql' /etc/group; then
+		addUserGroup mysql mysql 
+	fi
+
+	if [ ! -d /var/run/mysqld ]; then
+		mkdir -p /var/run/mysqld
+		chown -R mysql:mysql /var/run/mysqld
+		chmod 700 /var/run/mysqld
+	fi
+
 	if [ ${MYSQL_TYPE} == "mysql" ]; then
 		# Install MySQL
 		echo "MySQL Server Installing..."
-		local mysql_files=""
+		local mysql_server=""
+		local mysql_files="	MySQL-client-${mysql_version}.x86_64.rpm MySQL-embedded-${mysql_version}.x86_64.rpm MySQL-server-${mysql_version}.x86_64.rpm MySQL-shared-${mysql_version}.x86_64.rpm MySQL-shared-compat-${mysql_version}.x86_64.rpm"
 		for file in ${mysql_files}
 		do
 			if [ ! -e "${BUILD_SOURCE_DIR}/${file}" ]; then 
@@ -1165,7 +1244,9 @@ build_mysql() {
 	else 
 		# Install MariaDB
 		echo "MariaDB Server Installing..."
-		local mariadb_files=""
+		local mariadb_version=""
+		local galera_version=""
+		local mariadb_files="MariaDB-backup-${mariadb_version}.centos.x86_64.rpm MariaDB-client-${mariadb_version}.centos.x86_64.rpm MariaDB-common-${mariadb_version}.centos.x86_64.rpm MariaDB-compat-${mariadb_version}.centos.x86_64.rpm MariaDB-server-${mariadb_version}.centos.x86_64.rpm MariaDB-shared-${mariadb_version}.centos.x86_64.rpm galera-${galera_version}.centos.x86_64.rpm"
 
 		for file in ${mariadb_files}
 		do
